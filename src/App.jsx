@@ -92,11 +92,59 @@ const normalizeGlossaryRows = (rows) =>
     })
     .filter(Boolean)
 
-const Field = ({
-  label,
-  className = '',
-  children,
-}) => (
+const STORAGE_PREFIX = 'neet-question-studio'
+
+const mergeWithStoredRecords = (records, key) => {
+  if (typeof window === 'undefined' || !key) return records
+
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return records
+
+    const payload = JSON.parse(raw)
+    if (!payload || !Array.isArray(payload.records)) return records
+
+    const storedRecords = payload.records
+    return records.map((record, index) => {
+      const stored =
+        storedRecords.find((item) => item.id && item.id === record.id) ??
+        storedRecords[index]
+      if (!stored) return record
+
+      return {
+        ...record,
+        questionTa: stored.questionTa ?? record.questionTa,
+        optionsTa: Array.isArray(stored.optionsTa)
+          ? stored.optionsTa.map((item) => toText(item))
+          : record.optionsTa,
+        answerTa: stored.answerTa ?? record.answerTa,
+        explanationTa: stored.explanationTa ?? record.explanationTa,
+      }
+    })
+  } catch (error) {
+    console.error('Failed to restore saved edits', error)
+    return records
+  }
+}
+
+const persistRecordsToStorage = (key, records) => {
+  if (typeof window === 'undefined' || !key) return
+
+  try {
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({
+        version: 1,
+        updatedAt: dayjs().toISOString(),
+        records,
+      })
+    )
+  } catch (error) {
+    console.error('Failed to save edits', error)
+  }
+}
+
+const Field = ({ label, className = '', children }) => (
   <section className={`space-y-2 ${className}`}>
     <p className="text-sm font-medium text-slate-300">{label}</p>
     {children}
@@ -215,12 +263,23 @@ const RecordNavigator = ({
   onNext,
   onPrev,
   disabled,
+  showSave,
+  onSave,
 }) => (
-  <div className="flex items-center justify-between gap-3">
+  <div className="flex flex-wrap items-center justify-between gap-3">
     <p className="text-sm text-slate-400">
       {total > 0 ? `Record ${index + 1} of ${total}` : 'No records loaded'}
     </p>
     <div className="flex items-center gap-3">
+      {showSave ? (
+        <button
+          type="button"
+          onClick={onSave}
+          className="rounded-full border border-accent/60 bg-accent px-4 py-2 text-sm font-semibold text-surface-base transition hover:bg-yellow-500"
+        >
+          Save
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onPrev}
@@ -249,7 +308,8 @@ const OptionsGrid = ({ label, options, language, onChange }) => (
           key={`${language}-${idx}`}
           value={option}
           onChange={(event) => onChange(idx, event.target.value)}
-          className="min-h-[56px] rounded-lg border border-slate-800 bg-surface-base px-3 py-2 text-sm text-slate-200 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
+          rows={2}
+          className="rounded-lg border border-slate-800 bg-surface-base px-3 py-2 text-sm text-slate-200 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
         />
       ))}
     </div>
@@ -264,6 +324,8 @@ const RecordPanel = ({
   onPrev,
   glossaryEntry,
   onUpdateRecord,
+  showSave,
+  onSave,
 }) => {
   if (!record) {
     return (
@@ -287,6 +349,8 @@ const RecordPanel = ({
         onNext={onNext}
         onPrev={onPrev}
         disabled={!record}
+        showSave={showSave}
+        onSave={onSave}
       />
 
       <div className="mt-6 flex-1 overflow-hidden">
@@ -300,7 +364,8 @@ const RecordPanel = ({
                   questionTa: event.target.value,
                 })
               }
-              className="min-h-[72px] w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
+              rows={3}
+              className="w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
             />
           </Field>
 
@@ -320,19 +385,23 @@ const RecordPanel = ({
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <Field label={FIELD_LABELS.glossary}>
-              {glossaryEntry ? (
-                <div className="space-y-1 text-sm leading-relaxed">
-                  <p className="font-semibold text-accent">
-                    {glossaryEntry.term}
-                  </p>
-                  <p className="text-slate-300">{glossaryEntry.description}</p>
-                </div>
-              ) : (
-                <span className="text-slate-500">
-                  Upload a glossary file to review terms alongside the
-                  question.
-                </span>
-              )}
+              <div className="rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-200">
+                {glossaryEntry ? (
+                  <div className="space-y-1 leading-relaxed">
+                    <p className="font-semibold text-accent">
+                      {glossaryEntry.term}
+                    </p>
+                    <p className="text-slate-300">
+                      {glossaryEntry.description}
+                    </p>
+                  </div>
+                ) : (
+                  <span className="text-slate-500">
+                    Upload a glossary file to review terms alongside the
+                    question.
+                  </span>
+                )}
+              </div>
             </Field>
             <Field label={FIELD_LABELS.answerTa}>
               <textarea
@@ -343,7 +412,8 @@ const RecordPanel = ({
                     answerTa: event.target.value,
                   })
                 }
-                className="min-h-[56px] w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
+                rows={2}
+                className="w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
               />
             </Field>
           </div>
@@ -357,7 +427,8 @@ const RecordPanel = ({
                   explanationTa: event.target.value,
                 })
               }
-              className="min-h-[96px] w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
+              rows={3}
+              className="w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
             />
           </Field>
 
@@ -423,6 +494,8 @@ function App() {
   const [glossary, setGlossary] = useState([])
   const [excelMeta, setExcelMeta] = useState(null)
   const [glossaryMeta, setGlossaryMeta] = useState(null)
+  const [storageKey, setStorageKey] = useState('')
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   const currentRecord = useMemo(
     () => (records.length > 0 ? records[currentIndex] : null),
@@ -473,16 +546,23 @@ function App() {
           record.answerEn
       )
 
-      setRecords(parsed)
+      const key = `${STORAGE_PREFIX}:${file.name}`
+      const merged = mergeWithStoredRecords(parsed, key)
+
+      setStorageKey(key)
+      setRecords(merged)
       setCurrentIndex(0)
+      setHasUnsavedChanges(false)
       setExcelMeta({
         name: file.name,
-        total: parsed.length,
+        total: merged.length,
       })
     } catch (error) {
       console.error(error)
       setExcelMeta(null)
       setRecords([])
+      setStorageKey('')
+      setHasUnsavedChanges(false)
     } finally {
       event.target.value = ''
     }
@@ -521,6 +601,12 @@ function App() {
   const handlePrev = () =>
     setCurrentIndex((prev) => Math.max(prev - 1, 0))
 
+  const handleSaveRecords = () => {
+    if (!storageKey || records.length === 0) return
+    persistRecordsToStorage(storageKey, records)
+    setHasUnsavedChanges(false)
+  }
+
   if (!user) {
     return <LoginScreen onLogin={handleLogin} error={authError} />
   }
@@ -528,48 +614,55 @@ function App() {
   return (
     <div className="flex min-h-screen flex-col bg-surface-base text-slate-100">
       <header className="border-b border-slate-800 bg-surface-raised px-6 py-5 shadow-lg shadow-black/30">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xl font-semibold text-slate-100">
-              NEET Question Studio
-            </p>
-            <p className="text-sm text-slate-400">
-              {user.username} • Logged in {user.loginTime}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-              {excelMeta ? (
-                <span className="rounded-full border border-slate-700 px-3 py-1">
-                  {excelMeta.name} · {excelMeta.total} records
-                </span>
-              ) : (
-                <span className="rounded-full border border-slate-700 px-3 py-1">
-                  Upload question sheet
-                </span>
-              )}
-              {glossaryMeta ? (
-                <span className="rounded-full border border-slate-700 px-3 py-1">
-                  {glossaryMeta.name} · {glossaryMeta.total} terms
-                </span>
-              ) : (
-                <span className="rounded-full border border-slate-700 px-3 py-1">
-                  Glossary not loaded
-                </span>
-              )}
+        <div className="mx-auto flex max-w-6xl flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xl font-semibold text-slate-100">
+                NEET Question Studio
+              </p>
+              <p className="text-sm text-slate-400">
+                {user.username} • Logged in {user.loginTime}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <UploadButton
+                id="upload-excel"
+                label="Upload Question Sheet"
+                onChange={handleExcelUpload}
+                accept=".xlsx,.xls"
+              />
+              <UploadButton
+                id="upload-glossary"
+                label="Upload Glossary"
+                onChange={handleGlossaryUpload}
+                accept=".xlsx,.xls"
+              />
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <UploadButton
-              id="upload-excel"
-              label="Upload Question Sheet"
-              onChange={handleExcelUpload}
-              accept=".xlsx,.xls"
-            />
-            <UploadButton
-              id="upload-glossary"
-              label="Upload Glossary"
-              onChange={handleGlossaryUpload}
-              accept=".xlsx,.xls"
-            />
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            {excelMeta ? (
+              <span className="rounded-full border border-slate-700 px-3 py-1">
+                {excelMeta.name} · {excelMeta.total} records
+              </span>
+            ) : (
+              <span className="rounded-full border border-slate-700 px-3 py-1">
+                Upload question sheet
+              </span>
+            )}
+            {glossaryMeta ? (
+              <span className="rounded-full border border-slate-700 px-3 py-1">
+                {glossaryMeta.name} · {glossaryMeta.total} terms
+              </span>
+            ) : (
+              <span className="rounded-full border border-slate-700 px-3 py-1">
+                Glossary not loaded
+              </span>
+            )}
+            {storageKey ? (
+              <span className="rounded-full border border-accent/40 px-3 py-1 text-accent">
+                {hasUnsavedChanges ? 'Unsaved edits' : 'All changes saved'}
+              </span>
+            ) : null}
           </div>
         </div>
       </header>
@@ -586,11 +679,25 @@ function App() {
               glossaryEntry={activeGlossaryEntry}
               onUpdateRecord={(updated) => {
                 setRecords((prev) =>
-                  prev.map((row, rowIndex) =>
-                    rowIndex === currentIndex ? updated : row
-                  )
+                  prev.map((row, rowIndex) => {
+                    if (rowIndex !== currentIndex) return row
+                    const next = {
+                      ...row,
+                      ...updated,
+                    }
+                    next.optionsTa = Array.isArray(updated.optionsTa)
+                      ? [...updated.optionsTa]
+                      : row.optionsTa
+                    next.optionsEn = Array.isArray(updated.optionsEn)
+                      ? [...updated.optionsEn]
+                      : row.optionsEn
+                    return next
+                  })
                 )
+                setHasUnsavedChanges(true)
               }}
+              onSave={handleSaveRecords}
+              showSave={hasUnsavedChanges && Boolean(storageKey)}
             />
           </div>
         </div>
