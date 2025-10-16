@@ -145,7 +145,7 @@ const persistRecordsToStorage = (key, records) => {
 }
 
 const Field = ({ label, className = '', children }) => (
-  <section className={`space-y-2 ${className}`}>
+  <section className={`space-y-1.5 ${className}`}>
     <p className="text-sm font-medium text-slate-300">{label}</p>
     {children}
   </section>
@@ -154,7 +154,7 @@ const Field = ({ label, className = '', children }) => (
 const UploadButton = ({ id, label, onChange, accept }) => (
   <label
     htmlFor={id}
-    className="flex cursor-pointer items-center gap-2 rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/20"
+    className="flex cursor-pointer items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/20"
   >
     <input
       id={id}
@@ -266,16 +266,16 @@ const RecordNavigator = ({
   showSave,
   onSave,
 }) => (
-  <div className="flex flex-wrap items-center justify-between gap-3">
+  <div className="flex flex-wrap items-center justify-between gap-2.5">
     <p className="text-sm text-slate-400">
       {total > 0 ? `Record ${index + 1} of ${total}` : 'No records loaded'}
     </p>
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       {showSave ? (
         <button
           type="button"
           onClick={onSave}
-          className="rounded-full border border-accent/60 bg-accent px-4 py-2 text-sm font-semibold text-surface-base transition hover:bg-yellow-500"
+          className="rounded-full border border-accent/60 bg-accent px-3.5 py-1.5 text-sm font-semibold text-surface-base transition hover:bg-yellow-500"
         >
           Save
         </button>
@@ -284,7 +284,7 @@ const RecordNavigator = ({
         type="button"
         onClick={onPrev}
         disabled={disabled || index === 0}
-        className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-300 transition enabled:hover:border-accent enabled:hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-full border border-slate-700 px-3.5 py-1.5 text-sm text-slate-300 transition enabled:hover:border-accent enabled:hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
       >
         Previous
       </button>
@@ -292,7 +292,7 @@ const RecordNavigator = ({
         type="button"
         onClick={onNext}
         disabled={disabled || index >= total - 1}
-        className="rounded-full border border-slate-700 px-4 py-2 text-sm text-slate-300 transition enabled:hover:border-accent enabled:hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-full border border-slate-700 px-3.5 py-1.5 text-sm text-slate-300 transition enabled:hover:border-accent enabled:hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
       >
         Next
       </button>
@@ -302,14 +302,14 @@ const RecordNavigator = ({
 
 const OptionsGrid = ({ label, options, language, onChange }) => (
   <Field label={label}>
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
       {options.map((option, idx) => (
         <textarea
           key={`${language}-${idx}`}
           value={option}
           onChange={(event) => onChange(idx, event.target.value)}
           rows={2}
-          className="rounded-lg border border-slate-800 bg-surface-base px-3 py-2 text-sm text-slate-200 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
+          className="rounded-lg border border-slate-800 bg-surface-base px-2.5 py-1.5 text-sm text-slate-200 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
         />
       ))}
     </div>
@@ -342,7 +342,7 @@ const RecordPanel = ({
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-800 bg-surface-raised p-6 shadow-2xl shadow-black/40">
+    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-800 bg-surface-raised p-5 shadow-2xl shadow-black/40">
       <RecordNavigator
         index={index}
         total={total}
@@ -353,8 +353,8 @@ const RecordPanel = ({
         onSave={onSave}
       />
 
-      <div className="mt-6 flex-1 overflow-hidden">
-        <div className="flex h-full flex-col gap-6 overflow-y-auto pr-3">
+      <div className="mt-4 flex-1 overflow-hidden">
+        <div className="flex h-full flex-col gap-4 overflow-y-auto pr-3">
           <Field label={FIELD_LABELS.questionTa}>
             <textarea
               value={record.questionTa}
@@ -364,8 +364,8 @@ const RecordPanel = ({
                   questionTa: event.target.value,
                 })
               }
-              rows={3}
-              className="w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
+              rows={2}
+              className="w-full rounded-xl border border-slate-800 bg-surface-base px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
             />
           </Field>
 
@@ -383,9 +383,9 @@ const RecordPanel = ({
             }}
           />
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field label={FIELD_LABELS.glossary}>
-              <div className="rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-200">
+              <div className="rounded-xl border border-slate-800 bg-surface-base px-3 py-2.5 text-sm text-slate-200">
                 {glossaryEntry ? (
                   <div className="space-y-1 leading-relaxed">
                     <p className="font-semibold text-accent">
@@ -413,7 +413,7 @@ const RecordPanel = ({
                   })
                 }
                 rows={2}
-                className="w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
+                className="w-full rounded-xl border border-slate-800 bg-surface-base px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
               />
             </Field>
           </div>
@@ -428,15 +428,15 @@ const RecordPanel = ({
                 })
               }
               rows={3}
-              className="w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
+              className="w-full rounded-xl border border-slate-800 bg-surface-base px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
             />
           </Field>
 
           <div className="h-px w-full bg-slate-800/60" />
 
-          <section className="space-y-4">
+          <section className="space-y-3">
             <Field label="தமிழ் (read-only snapshot)">
-              <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/40 p-4 text-sm leading-relaxed text-slate-300">
+              <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-sm leading-relaxed text-slate-300">
                 <p>
                   <span className="font-medium">Question:</span>{' '}
                   {record.questionTa || '—'}
@@ -458,7 +458,7 @@ const RecordPanel = ({
               </div>
             </Field>
             <Field label="English (read-only)">
-              <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/40 p-4 text-sm leading-relaxed text-slate-300">
+              <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-sm leading-relaxed text-slate-300">
                 <p>
                   <span className="font-medium">Question:</span>{' '}
                   {record.questionEn || '—'}
@@ -613,36 +613,20 @@ function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-surface-base text-slate-100">
-      <header className="border-b border-slate-800 bg-surface-raised px-6 py-5 shadow-lg shadow-black/30">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xl font-semibold text-slate-100">
-                NEET Question Studio
-              </p>
-              <p className="text-sm text-slate-400">
-                {user.username} • Logged in {user.loginTime}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <UploadButton
-                id="upload-excel"
-                label="Upload Question Sheet"
-                onChange={handleExcelUpload}
-                accept=".xlsx,.xls"
-              />
-              <UploadButton
-                id="upload-glossary"
-                label="Upload Glossary"
-                onChange={handleGlossaryUpload}
-                accept=".xlsx,.xls"
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+      <header className="border-b border-slate-800 bg-surface-raised px-5 py-4 shadow-lg shadow-black/30">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
             {excelMeta ? (
-              <span className="rounded-full border border-slate-700 px-3 py-1">
-                {excelMeta.name} · {excelMeta.total} records
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 px-3 py-1">
+                <span
+                  className="max-w-[14rem] truncate"
+                  title={excelMeta.name}
+                >
+                  {excelMeta.name}
+                </span>
+                <span className="flex-shrink-0">
+                  · {excelMeta.total} records
+                </span>
               </span>
             ) : (
               <span className="rounded-full border border-slate-700 px-3 py-1">
@@ -650,8 +634,16 @@ function App() {
               </span>
             )}
             {glossaryMeta ? (
-              <span className="rounded-full border border-slate-700 px-3 py-1">
-                {glossaryMeta.name} · {glossaryMeta.total} terms
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 px-3 py-1">
+                <span
+                  className="max-w-[14rem] truncate"
+                  title={glossaryMeta.name}
+                >
+                  {glossaryMeta.name}
+                </span>
+                <span className="flex-shrink-0">
+                  · {glossaryMeta.total} terms
+                </span>
               </span>
             ) : (
               <span className="rounded-full border border-slate-700 px-3 py-1">
@@ -663,12 +655,34 @@ function App() {
                 {hasUnsavedChanges ? 'Unsaved edits' : 'All changes saved'}
               </span>
             ) : null}
+            <UploadButton
+              id="upload-excel"
+              label="Upload Question Sheet"
+              onChange={handleExcelUpload}
+              accept=".xlsx,.xls"
+            />
+            <UploadButton
+              id="upload-glossary"
+              label="Upload Glossary"
+              onChange={handleGlossaryUpload}
+              accept=".xlsx,.xls"
+            />
+          </div>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div>
+              <p className="text-lg font-semibold text-slate-100">
+                NEET Question Studio
+              </p>
+              <p className="text-xs text-slate-400">
+                {user.username} • Logged in {user.loginTime}
+              </p>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="flex flex-1 overflow-hidden px-6 py-6">
-        <div className="mx-auto flex h-full w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden lg:flex-row">
+      <main className="flex flex-1 overflow-hidden px-5 py-5">
+        <div className="mx-auto flex h-full w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
           <div className="flex h-full flex-col overflow-hidden">
             <RecordPanel
               record={currentRecord}
