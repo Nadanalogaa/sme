@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 import userDataSheetUrl from '../SME_Data.xlsx?url'
+import loginBackdropUrl from '../images/student-class.jpg'
 
 const FIELD_LABELS = {
   questionTa: 'கேள்வி',
@@ -81,6 +82,24 @@ const parseUserRecords = (worksheet) => {
 
     return accumulator
   }, [])
+}
+
+const THEME_STORAGE_KEY = 'neet-question-theme'
+
+const resolveInitialTheme = () => {
+  if (typeof window === 'undefined') return 'dark'
+  const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
+  if (stored === 'light' || stored === 'dark') return stored
+  return window.matchMedia &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
+}
+
+const initialTheme = resolveInitialTheme()
+
+if (typeof document !== 'undefined') {
+  document.documentElement.classList.toggle('dark', initialTheme === 'dark')
 }
 
 const pickValue = (record, variants) => {
@@ -199,7 +218,9 @@ const persistRecordsToStorage = (key, records) => {
 
 const Field = ({ label, className = '', children }) => (
   <section className={`space-y-1.5 ${className}`}>
-    <p className="text-sm font-medium text-slate-300">{label}</p>
+    <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+      {label}
+    </p>
     {children}
   </section>
 )
@@ -220,7 +241,36 @@ const UploadButton = ({ id, label, onChange, accept }) => (
   </label>
 )
 
-const LoginScreen = ({ onLogin, error, isLoadingUsers, userDataError }) => {
+const ThemeToggle = ({ theme, onToggle, className = '' }) => {
+  const isDark = theme === 'dark'
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`group flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-accent hover:text-accent dark:border-slate-700 dark:bg-surface-raised/80 dark:text-slate-200 ${className}`}
+      aria-pressed={isDark}
+      aria-label={`Activate ${isDark ? 'light' : 'dark'} theme`}
+    >
+      <span className="relative flex h-5 w-10 items-center rounded-full bg-slate-300 transition group-hover:bg-slate-400 dark:bg-slate-600 dark:group-hover:bg-slate-500">
+        <span
+          className={`absolute h-5 w-5 rounded-full bg-white shadow transition-transform dark:bg-surface-raised ${
+            isDark ? 'translate-x-5' : 'translate-x-0'
+          }`}
+        />
+      </span>
+      <span>{isDark ? 'Dark' : 'Light'} mode</span>
+    </button>
+  )
+}
+
+const LoginScreen = ({
+  onLogin,
+  error,
+  isLoadingUsers,
+  userDataError,
+  theme,
+  onToggleTheme,
+}) => {
   const [formState, setFormState] = useState({
     email: '',
     password: '',
@@ -232,81 +282,137 @@ const LoginScreen = ({ onLogin, error, isLoadingUsers, userDataError }) => {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-base px-6 py-10 text-slate-100">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-md space-y-6 rounded-3xl border border-slate-800 bg-surface-raised p-10 shadow-2xl shadow-black/40"
-      >
-        <header className="space-y-2 text-center">
-          <p className="text-xl font-semibold tracking-tight">
-            NEET Question Studio
-          </p>
-          <p className="text-sm text-slate-400">
-            Sign in with your registered email and password
-          </p>
-        </header>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-100 transition-colors dark:bg-surface-base">
+      <div className="absolute inset-0">
+        <img
+          src={loginBackdropUrl}
+          alt="Students collaborating in a classroom"
+          className="h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-white/70 backdrop-blur-sm transition-colors dark:bg-surface-base/80" />
+      </div>
 
-        <div className="space-y-4">
-          <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Email</span>
-            <input
-              type="email"
-              value={formState.email}
-              onChange={(event) =>
-                setFormState((prev) => ({
-                  ...prev,
-                  email: event.target.value,
-                }))
-              }
-              className="w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none ring-0 transition focus:border-accent focus:ring-2 focus:ring-accent/40"
-              placeholder="name@example.com"
-              autoComplete="email"
-              required
-            />
-          </label>
+      <div className="absolute top-6 right-6 z-20">
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+      </div>
 
-          <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Password</span>
-            <input
-              type="password"
-              value={formState.password}
-              onChange={(event) =>
-                setFormState((prev) => ({
-                  ...prev,
-                  password: event.target.value,
-                }))
-              }
-              className="w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none ring-0 transition focus:border-accent focus:ring-2 focus:ring-accent/40"
-              placeholder="••••••"
-              autoComplete="current-password"
-              required
-            />
-          </label>
-        </div>
-
-        {error ? (
-          <p className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-            {error}
-          </p>
-        ) : (
-          <div className="space-y-1 rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-xs text-slate-400">
-            <p>Use the credentials shared in the SME data sheet.</p>
-            {userDataError ? (
-              <p className="text-red-300">{userDataError}</p>
-            ) : isLoadingUsers ? (
-              <p>Loading authorised user list…</p>
-            ) : null}
+      <div className="relative z-10 flex w-full max-w-5xl flex-col gap-8 px-6 py-10 lg:flex-row lg:items-stretch">
+        <section className="hidden flex-1 flex-col justify-between rounded-3xl border border-white/40 bg-white/75 p-10 text-slate-700 shadow-2xl backdrop-blur-lg dark:border-slate-800/70 dark:bg-surface-raised/70 dark:text-slate-200 lg:flex">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-accent">
+              NEET Question Studio
+            </p>
+            <h1 className="mt-6 text-3xl font-bold text-slate-900 dark:text-slate-100">
+              Craft precise NEET question sets with ease.
+            </h1>
+            <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              Upload curated question sheets, refine bilingual responses, and
+              collaborate with your fellow subject experts in one focused
+              workspace.
+            </p>
           </div>
-        )}
 
-        <button
-          type="submit"
-          className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-surface-base transition hover:bg-yellow-500"
-          disabled={isLoadingUsers}
+          <dl className="mt-6 grid grid-cols-1 gap-4 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">
+            <div>
+              <dt className="font-semibold text-slate-800 dark:text-slate-200">
+                Built for educators
+              </dt>
+              <dd className="mt-1 leading-relaxed">
+                Iterate on questions and translations side by side with instant
+                previews.
+              </dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-slate-800 dark:text-slate-200">
+                Secure access
+              </dt>
+              <dd className="mt-1 leading-relaxed">
+                Sign in with the credentials provided in the SME roster.
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <form
+          onSubmit={handleSubmit}
+          className="relative w-full max-w-md space-y-7 rounded-3xl border border-slate-200 bg-white/85 p-10 text-slate-900 shadow-2xl backdrop-blur-lg transition-colors dark:border-slate-800 dark:bg-surface-raised/90 dark:text-slate-100"
         >
-          {isLoadingUsers ? 'Please wait…' : 'Login'}
-        </button>
-      </form>
+          <header className="space-y-3 text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-accent">
+              Welcome back
+            </p>
+            <h2 className="text-3xl font-bold">Sign in to continue</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Use the email and password shared with you in the SME data sheet.
+            </p>
+          </header>
+
+          <div className="space-y-4">
+            <label className="block space-y-2 text-sm">
+              <span className="text-slate-600 dark:text-slate-300">Email</span>
+              <input
+                type="email"
+                value={formState.email}
+                onChange={(event) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    email: event.target.value,
+                  }))
+                }
+                className="w-full rounded-2xl border border-slate-300 bg-white/80 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-700 dark:bg-surface-base/80 dark:text-slate-100 dark:placeholder:text-slate-500"
+                placeholder="name@example.com"
+                autoComplete="email"
+                required
+              />
+            </label>
+
+            <label className="block space-y-2 text-sm">
+              <span className="text-slate-600 dark:text-slate-300">
+                Password
+              </span>
+              <input
+                type="password"
+                value={formState.password}
+                onChange={(event) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    password: event.target.value,
+                  }))
+                }
+                className="w-full rounded-2xl border border-slate-300 bg-white/80 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-700 dark:bg-surface-base/80 dark:text-slate-100 dark:placeholder:text-slate-500"
+                placeholder="••••••"
+                autoComplete="current-password"
+                required
+              />
+            </label>
+          </div>
+
+          {error ? (
+            <p className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-600 transition dark:text-red-200 dark:bg-red-500/20">
+              {error}
+            </p>
+          ) : (
+            <div className="space-y-1 rounded-2xl border border-slate-300 bg-white/60 px-4 py-3 text-xs text-slate-500 transition dark:border-slate-700 dark:bg-surface-base/70 dark:text-slate-300">
+              <p>Use the credentials shared in the SME data sheet.</p>
+              {userDataError ? (
+                <p className="text-red-500 dark:text-red-200">
+                  {userDataError}
+                </p>
+              ) : isLoadingUsers ? (
+                <p>Loading authorised user list…</p>
+              ) : null}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="w-full rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg transition hover:bg-yellow-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-70 dark:text-surface-base"
+            disabled={isLoadingUsers}
+          >
+            {isLoadingUsers ? 'Please wait…' : 'Login'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
@@ -321,7 +427,7 @@ const RecordNavigator = ({
   onSave,
 }) => (
   <div className="flex flex-wrap items-center justify-between gap-2.5">
-    <p className="text-sm text-slate-400">
+    <p className="text-sm text-slate-600 dark:text-slate-400">
       {total > 0 ? `Record ${index + 1} of ${total}` : 'No records loaded'}
     </p>
     <div className="flex items-center gap-2">
@@ -329,7 +435,7 @@ const RecordNavigator = ({
         <button
           type="button"
           onClick={onSave}
-          className="rounded-full border border-accent/60 bg-accent px-3.5 py-1.5 text-sm font-semibold text-surface-base transition hover:bg-yellow-500"
+          className="rounded-full border border-accent/60 bg-accent px-3.5 py-1.5 text-sm font-semibold text-slate-900 transition hover:bg-yellow-500 dark:text-surface-base"
         >
           Save
         </button>
@@ -338,7 +444,7 @@ const RecordNavigator = ({
         type="button"
         onClick={onPrev}
         disabled={disabled || index === 0}
-        className="rounded-full border border-slate-700 px-3.5 py-1.5 text-sm text-slate-300 transition enabled:hover:border-accent enabled:hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-full border border-slate-300 px-3.5 py-1.5 text-sm text-slate-600 transition enabled:hover:border-accent enabled:hover:text-accent disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300"
       >
         Previous
       </button>
@@ -346,7 +452,7 @@ const RecordNavigator = ({
         type="button"
         onClick={onNext}
         disabled={disabled || index >= total - 1}
-        className="rounded-full border border-slate-700 px-3.5 py-1.5 text-sm text-slate-300 transition enabled:hover:border-accent enabled:hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-full border border-slate-300 px-3.5 py-1.5 text-sm text-slate-600 transition enabled:hover:border-accent enabled:hover:text-accent disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300"
       >
         Next
       </button>
@@ -363,7 +469,7 @@ const OptionsGrid = ({ label, options, language, onChange }) => (
           value={option}
           onChange={(event) => onChange(idx, event.target.value)}
           rows={2}
-          className="rounded-lg border border-slate-800 bg-surface-base px-2.5 py-1.5 text-sm text-slate-200 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
+          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none"
         />
       ))}
     </div>
@@ -383,11 +489,11 @@ const RecordPanel = ({
 }) => {
   if (!record) {
     return (
-      <div className="flex h-full flex-col justify-center rounded-3xl border border-dashed border-slate-700 bg-slate-900/30 text-center text-slate-400">
-        <p className="text-lg font-semibold text-slate-200">
+      <div className="flex h-full flex-col justify-center rounded-3xl border border-dashed border-slate-300 bg-white/70 p-10 text-center text-slate-500 backdrop-blur dark:border-slate-700 dark:bg-slate-900/30 dark:text-slate-400">
+        <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">
           Upload an Excel sheet to begin
         </p>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           The viewer will render each question, options, answers, and
           explanations in Tamil and English.
         </p>
@@ -396,7 +502,7 @@ const RecordPanel = ({
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-800 bg-surface-raised p-5 shadow-2xl shadow-black/40">
+    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-surface-raised dark:shadow-2xl dark:shadow-black/40">
       <RecordNavigator
         index={index}
         total={total}
@@ -419,7 +525,7 @@ const RecordPanel = ({
                 })
               }
               rows={2}
-              className="w-full rounded-xl border border-slate-800 bg-surface-base px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none"
             />
           </Field>
 
@@ -439,18 +545,18 @@ const RecordPanel = ({
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field label={FIELD_LABELS.glossary}>
-              <div className="rounded-xl border border-slate-800 bg-surface-base px-3 py-2.5 text-sm text-slate-200">
+              <div className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 transition dark:border-slate-800 dark:bg-surface-base dark:text-slate-200">
                 {glossaryEntry ? (
                   <div className="space-y-1 leading-relaxed">
                     <p className="font-semibold text-accent">
                       {glossaryEntry.term}
                     </p>
-                    <p className="text-slate-300">
+                    <p className="text-slate-600 dark:text-slate-300">
                       {glossaryEntry.description}
                     </p>
                   </div>
                 ) : (
-                  <span className="text-slate-500">
+                  <span className="text-slate-500 dark:text-slate-400">
                     Upload a glossary file to review terms alongside the
                     question.
                   </span>
@@ -467,7 +573,7 @@ const RecordPanel = ({
                   })
                 }
                 rows={2}
-                className="w-full rounded-xl border border-slate-800 bg-surface-base px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none"
               />
             </Field>
           </div>
@@ -482,15 +588,15 @@ const RecordPanel = ({
                 })
               }
               rows={3}
-              className="w-full rounded-xl border border-slate-800 bg-surface-base px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 resize-none"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none"
             />
           </Field>
 
-          <div className="h-px w-full bg-slate-800/60" />
+          <div className="h-px w-full bg-slate-200 dark:bg-slate-800/60" />
 
           <section className="space-y-3">
             <Field label="தமிழ் (read-only snapshot)">
-              <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-sm leading-relaxed text-slate-300">
+              <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-700 transition dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
                 <p>
                   <span className="font-medium">Question:</span>{' '}
                   {record.questionTa || '—'}
@@ -512,7 +618,7 @@ const RecordPanel = ({
               </div>
             </Field>
             <Field label="English (read-only)">
-              <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-sm leading-relaxed text-slate-300">
+              <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-700 transition dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
                 <p>
                   <span className="font-medium">Question:</span>{' '}
                   {record.questionEn || '—'}
@@ -553,6 +659,17 @@ function App() {
   const [users, setUsers] = useState([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [userDataError, setUserDataError] = useState('')
+  const [theme, setTheme] = useState(() => initialTheme)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+  }, [theme])
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -735,17 +852,19 @@ function App() {
         error={authError}
         isLoadingUsers={isLoadingUsers}
         userDataError={userDataError}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
     )
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface-base text-slate-100">
-      <header className="border-b border-slate-800 bg-surface-raised px-5 py-4 shadow-lg shadow-black/30">
+    <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900 transition-colors dark:bg-surface-base dark:text-slate-100">
+      <header className="border-b border-slate-200 bg-white/90 px-5 py-4 shadow-md backdrop-blur dark:border-slate-800 dark:bg-surface-raised">
         <div className="mx-auto flex max-w-6xl flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
             {excelMeta ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 px-3 py-1">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/60 px-3 py-1 text-slate-600 dark:border-slate-700 dark:bg-surface-base/60 dark:text-slate-300">
                 <span
                   className="max-w-[14rem] truncate"
                   title={excelMeta.name}
@@ -757,12 +876,12 @@ function App() {
                 </span>
               </span>
             ) : (
-              <span className="rounded-full border border-slate-700 px-3 py-1">
+              <span className="rounded-full border border-slate-300 bg-white/60 px-3 py-1 dark:border-slate-700 dark:bg-surface-base/60">
                 Upload question sheet
               </span>
             )}
             {glossaryMeta ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 px-3 py-1">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/60 px-3 py-1 text-slate-600 dark:border-slate-700 dark:bg-surface-base/60 dark:text-slate-300">
                 <span
                   className="max-w-[14rem] truncate"
                   title={glossaryMeta.name}
@@ -774,7 +893,7 @@ function App() {
                 </span>
               </span>
             ) : (
-              <span className="rounded-full border border-slate-700 px-3 py-1">
+              <span className="rounded-full border border-slate-300 bg-white/60 px-3 py-1 dark:border-slate-700 dark:bg-surface-base/60">
                 Glossary not loaded
               </span>
             )}
@@ -796,14 +915,14 @@ function App() {
               accept=".xlsx,.xls"
             />
           </div>
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-lg font-semibold text-slate-100">
+              <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 NEET Question Studio
               </p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Signed in as{' '}
-                <span className="text-slate-200">
+                <span className="text-slate-900 dark:text-slate-200">
                   {user.displayName || user.email}
                 </span>
                 {user.displayName ? (
@@ -812,11 +931,12 @@ function App() {
                 • Logged in {user.loginTime}
               </p>
             </div>
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
         </div>
       </header>
 
-      <main className="flex flex-1 overflow-hidden px-5 py-5">
+      <main className="flex flex-1 overflow-hidden bg-slate-50/80 px-5 py-5 transition-colors dark:bg-transparent">
         <div className="mx-auto flex h-full w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
           <div className="flex h-full flex-col overflow-hidden">
             <RecordPanel

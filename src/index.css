@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 html {
-  @apply bg-surface-base text-slate-100;
+  @apply bg-slate-100 text-slate-900 transition-colors dark:bg-surface-base dark:text-slate-100;
 }
 
 body {
-  @apply min-h-screen font-sans;
+  @apply min-h-screen font-sans bg-transparent;
 }
