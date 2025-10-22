@@ -39,7 +39,18 @@ const parseUserRecords = (worksheet) => {
 
   if (rows.length === 0) return []
 
-  const headers = rows[0].map((header) => toSafeString(header).toLowerCase())
+  const headerRowIndex = rows.findIndex((row) =>
+    row.some((cell) => {
+      const value = toSafeString(cell).toLowerCase()
+      return value === 'email' || value === 'email id'
+    })
+  )
+
+  if (headerRowIndex === -1) return []
+
+  const headers = rows[headerRowIndex].map((header) =>
+    toSafeString(header).toLowerCase()
+  )
 
   const findIndex = (candidates) =>
     headers.findIndex((header) =>
@@ -54,7 +65,9 @@ const parseUserRecords = (worksheet) => {
     password: findIndex(['Password']),
   }
 
-  return rows.slice(1).reduce((accumulator, row) => {
+  if (columnIndex.email === -1 || columnIndex.password === -1) return []
+
+  return rows.slice(headerRowIndex + 1).reduce((accumulator, row) => {
     const email = toSafeString(row[columnIndex.email])
     const password = toSafeString(row[columnIndex.password])
 
