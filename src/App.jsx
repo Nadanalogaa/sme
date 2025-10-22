@@ -1,11 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
-
-const DUMMY_CREDENTIALS = {
-  username: 'mentor',
-  password: 'neet2025',
-}
+import userDataSheetUrl from '../SME_Data.xlsx?url'
 
 const FIELD_LABELS = {
   questionTa: 'கேள்வி',
@@ -29,6 +25,50 @@ const toText = (value) =>
   typeof value === 'string'
     ? value.replace(/\r\n/g, '\n').trim()
     : value ?? ''
+
+const toSafeString = (value) =>
+  value === undefined || value === null ? '' : String(value).trim()
+
+const parseUserRecords = (worksheet) => {
+  if (!worksheet) return []
+
+  const rows = XLSX.utils.sheet_to_json(worksheet, {
+    header: 1,
+    defval: '',
+  })
+
+  if (rows.length === 0) return []
+
+  const headers = rows[0].map((header) => toSafeString(header).toLowerCase())
+
+  const findIndex = (candidates) =>
+    headers.findIndex((header) =>
+      candidates.some(
+        (candidate) => header === toSafeString(candidate).toLowerCase()
+      )
+    )
+
+  const columnIndex = {
+    name: findIndex(['SME Name', 'Name']),
+    email: findIndex(['Email', 'Email Id']),
+    password: findIndex(['Password']),
+  }
+
+  return rows.slice(1).reduce((accumulator, row) => {
+    const email = toSafeString(row[columnIndex.email])
+    const password = toSafeString(row[columnIndex.password])
+
+    if (!email || !password) return accumulator
+
+    accumulator.push({
+      email,
+      password,
+      name: toSafeString(row[columnIndex.name]) || email,
+    })
+
+    return accumulator
+  }, [])
+}
 
 const pickValue = (record, variants) => {
   for (const key of variants) {
@@ -167,9 +207,9 @@ const UploadButton = ({ id, label, onChange, accept }) => (
   </label>
 )
 
-const LoginScreen = ({ onLogin, error }) => {
+const LoginScreen = ({ onLogin, error, isLoadingUsers, userDataError }) => {
   const [formState, setFormState] = useState({
-    username: '',
+    email: '',
     password: '',
   })
 
@@ -189,25 +229,25 @@ const LoginScreen = ({ onLogin, error }) => {
             NEET Question Studio
           </p>
           <p className="text-sm text-slate-400">
-            Use the demo credentials to continue
+            Sign in with your registered email and password
           </p>
         </header>
 
         <div className="space-y-4">
           <label className="block space-y-2 text-sm">
-            <span className="text-slate-300">Username</span>
+            <span className="text-slate-300">Email</span>
             <input
-              type="text"
-              value={formState.username}
+              type="email"
+              value={formState.email}
               onChange={(event) =>
                 setFormState((prev) => ({
                   ...prev,
-                  username: event.target.value,
+                  email: event.target.value,
                 }))
               }
               className="w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none ring-0 transition focus:border-accent focus:ring-2 focus:ring-accent/40"
-              placeholder="mentor"
-              autoComplete="username"
+              placeholder="name@example.com"
+              autoComplete="email"
               required
             />
           </label>
@@ -224,7 +264,7 @@ const LoginScreen = ({ onLogin, error }) => {
                 }))
               }
               className="w-full rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-sm text-slate-100 outline-none ring-0 transition focus:border-accent focus:ring-2 focus:ring-accent/40"
-              placeholder="neet2025"
+              placeholder="••••••"
               autoComplete="current-password"
               required
             />
@@ -236,21 +276,22 @@ const LoginScreen = ({ onLogin, error }) => {
             {error}
           </p>
         ) : (
-          <div className="rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-xs text-slate-400">
-            <p>
-              Username: <span className="text-slate-200">mentor</span>
-            </p>
-            <p>
-              Password: <span className="text-slate-200">neet2025</span>
-            </p>
+          <div className="space-y-1 rounded-xl border border-slate-800 bg-surface-base px-4 py-3 text-xs text-slate-400">
+            <p>Use the credentials shared in the SME data sheet.</p>
+            {userDataError ? (
+              <p className="text-red-300">{userDataError}</p>
+            ) : isLoadingUsers ? (
+              <p>Loading authorised user list…</p>
+            ) : null}
           </div>
         )}
 
         <button
           type="submit"
           className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-surface-base transition hover:bg-yellow-500"
+          disabled={isLoadingUsers}
         >
-          Login
+          {isLoadingUsers ? 'Please wait…' : 'Login'}
         </button>
       </form>
     </div>
@@ -496,6 +537,54 @@ function App() {
   const [glossaryMeta, setGlossaryMeta] = useState(null)
   const [storageKey, setStorageKey] = useState('')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [users, setUsers] = useState([])
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
+  const [userDataError, setUserDataError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadUsers = async () => {
+      try {
+        setIsLoadingUsers(true)
+        const response = await fetch(userDataSheetUrl)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch user data: ${response.status}`)
+        }
+        const arrayBuffer = await response.arrayBuffer()
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+        const parsedUsers = parseUserRecords(worksheet)
+
+        if (!cancelled) {
+          setUsers(parsedUsers)
+          setUserDataError(
+            parsedUsers.length === 0
+              ? 'No user records found in SME_Data.xlsx.'
+              : ''
+          )
+        }
+      } catch (error) {
+        console.error('Failed to load SME user data', error)
+        if (!cancelled) {
+          setUsers([])
+          setUserDataError(
+            'Unable to load SME user list. Please contact the administrator.'
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingUsers(false)
+        }
+      }
+    }
+
+    loadUsers()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const currentRecord = useMemo(
     () => (records.length > 0 ? records[currentIndex] : null),
@@ -508,21 +597,40 @@ function App() {
     return entry
   }, [glossary, currentIndex])
 
-  const handleLogin = ({ username, password }) => {
-    if (
-      username.trim().toLowerCase() ===
-        DUMMY_CREDENTIALS.username.toLowerCase() &&
-      password === DUMMY_CREDENTIALS.password
-    ) {
+  const handleLogin = ({ email, password }) => {
+    const normalisedEmail = toSafeString(email).toLowerCase()
+    const normalisedPassword = toSafeString(password)
+
+    if (!normalisedEmail || !normalisedPassword) {
+      setAuthError('Please provide both email and password.')
+      return
+    }
+
+    if (isLoadingUsers) {
+      setAuthError('User list is still loading. Please try again in a moment.')
+      return
+    }
+
+    if (userDataError) {
+      setAuthError(userDataError)
+      return
+    }
+
+    const matchedUser = users.find(
+      (entry) => entry.email.toLowerCase() === normalisedEmail
+    )
+
+    if (matchedUser && matchedUser.password === normalisedPassword) {
       setUser({
-        username: DUMMY_CREDENTIALS.username,
+        email: matchedUser.email,
+        displayName: matchedUser.name,
         loginTime: dayjs().format('DD MMM YYYY • hh:mm A'),
       })
       setAuthError('')
       return
     }
 
-    setAuthError('Incorrect username or password. Try mentor / neet2025.')
+    setAuthError('Incorrect email or password.')
   }
 
   const handleExcelUpload = async (event) => {
@@ -608,7 +716,14 @@ function App() {
   }
 
   if (!user) {
-    return <LoginScreen onLogin={handleLogin} error={authError} />
+    return (
+      <LoginScreen
+        onLogin={handleLogin}
+        error={authError}
+        isLoadingUsers={isLoadingUsers}
+        userDataError={userDataError}
+      />
+    )
   }
 
   return (
@@ -674,7 +789,14 @@ function App() {
                 NEET Question Studio
               </p>
               <p className="text-xs text-slate-400">
-                {user.username} • Logged in {user.loginTime}
+                Signed in as{' '}
+                <span className="text-slate-200">
+                  {user.displayName || user.email}
+                </span>
+                {user.displayName ? (
+                  <span className="text-slate-500"> ({user.email})</span>
+                ) : null}{' '}
+                • Logged in {user.loginTime}
               </p>
             </div>
           </div>
