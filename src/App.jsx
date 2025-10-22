@@ -3,6 +3,8 @@ import dayjs from 'dayjs'
 import * as XLSX from 'xlsx'
 import userDataSheetUrl from '../SME_Data.xlsx?url'
 import loginBackdropUrl from '../images/student-class.jpg'
+import logoUrl from './assets/logo.svg'
+import appBackdropUrl from './assets/dashboard-pattern.svg'
 
 const FIELD_LABELS = {
   questionTa: 'கேள்வி',
@@ -100,6 +102,49 @@ const initialTheme = resolveInitialTheme()
 
 if (typeof document !== 'undefined') {
   document.documentElement.classList.toggle('dark', initialTheme === 'dark')
+}
+
+const TAMIL_MONTH_STARTS = [
+  { name: 'சித்திரை', start: [4, 14] },
+  { name: 'வைகாசி', start: [5, 15] },
+  { name: 'ஆனி', start: [6, 15] },
+  { name: 'ஆடி', start: [7, 17] },
+  { name: 'ஆவணி', start: [8, 17] },
+  { name: 'புரட்டாசி', start: [9, 17] },
+  { name: 'ஐப்பசி', start: [10, 17] },
+  { name: 'கார்த்திகை', start: [11, 16] },
+  { name: 'மார்கழி', start: [12, 16] },
+  { name: 'தை', start: [1, 14] },
+  { name: 'மாசி', start: [2, 13] },
+  { name: 'பங்குனி', start: [3, 15] },
+]
+
+const getTamilCalendarLabel = (input) => {
+  const moment = dayjs(input)
+  if (!moment.isValid()) {
+    return '—'
+  }
+
+  const candidates = TAMIL_MONTH_STARTS.flatMap((entry) => {
+    const [month, day] = entry.start
+    return [
+      { ...entry, start: dayjs(new Date(moment.year(), month - 1, day)) },
+      { ...entry, start: dayjs(new Date(moment.year() - 1, month - 1, day)) },
+      { ...entry, start: dayjs(new Date(moment.year() + 1, month - 1, day)) },
+    ]
+  }).sort((a, b) => a.start.valueOf() - b.start.valueOf())
+
+  let active = candidates[0]
+  for (const candidate of candidates) {
+    if (candidate.start.isSame(moment) || candidate.start.isBefore(moment)) {
+      active = candidate
+    } else {
+      break
+    }
+  }
+
+  const tamilDay = Math.max(1, moment.diff(active.start, 'day') + 1)
+  return `${active.name} - ${tamilDay}`
 }
 
 const pickValue = (record, variants) => {
@@ -476,6 +521,72 @@ const OptionsGrid = ({ label, options, language, onChange }) => (
   </Field>
 )
 
+const GlossaryDrawer = ({ open, onClose, glossary }) => (
+  <div
+    className={`fixed inset-0 z-40 transition duration-300 ${
+      open ? 'pointer-events-auto' : 'pointer-events-none'
+    }`}
+    aria-hidden={!open}
+  >
+    <button
+      type="button"
+      aria-label="Close glossary panel"
+      onClick={onClose}
+      tabIndex={open ? 0 : -1}
+      className={`absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity duration-300 ${
+        open ? 'opacity-100' : 'opacity-0'
+      }`}
+    />
+    <aside
+      className={`absolute left-0 top-0 flex h-full w-full max-w-md flex-col overflow-hidden bg-white shadow-2xl transition-transform duration-300 ease-in-out dark:bg-surface-raised ${
+        open ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
+      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+        <div>
+          <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            Glossary
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {glossary.length} curated term{glossary.length === 1 ? '' : 's'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-accent hover:text-accent dark:border-slate-600 dark:text-slate-300"
+        >
+          Close
+        </button>
+      </div>
+      <div className="h-full overflow-y-auto px-6 py-5">
+        {glossary.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            No glossary terms available. Upload a glossary sheet to review its
+            contents here.
+          </p>
+        ) : (
+          <ul className="space-y-4">
+            {glossary.map((entry) => (
+              <li
+                key={`${entry.term}-${entry.index}`}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-accent/60 dark:border-slate-700 dark:bg-surface-base"
+              >
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {entry.term}
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  {entry.description}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </aside>
+  </div>
+)
+
 const RecordPanel = ({
   record,
   index,
@@ -659,6 +770,8 @@ function App() {
   const [users, setUsers] = useState([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [userDataError, setUserDataError] = useState('')
+  const [isGlossaryPanelOpen, setGlossaryPanelOpen] = useState(false)
+  const [now, setNow] = useState(() => new Date())
   const [theme, setTheme] = useState(() => initialTheme)
 
   useEffect(() => {
@@ -670,6 +783,28 @@ function App() {
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    if (glossary.length === 0) {
+      setGlossaryPanelOpen(false)
+    }
+  }, [glossary.length])
+
+  useEffect(() => {
+    if (!isGlossaryPanelOpen) return
+    const handleKey = (event) => {
+      if (event.key === 'Escape') {
+        setGlossaryPanelOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [isGlossaryPanelOpen])
 
   useEffect(() => {
     let cancelled = false
@@ -727,6 +862,16 @@ function App() {
     return entry
   }, [glossary, currentIndex])
 
+  const nowMoment = useMemo(() => dayjs(now), [now])
+  const tamilDateLabel = useMemo(
+    () => getTamilCalendarLabel(nowMoment),
+    [nowMoment]
+  )
+  const englishDateLabel = useMemo(
+    () => nowMoment.format('DD MMM YYYY • hh:mm A'),
+    [nowMoment]
+  )
+
   const handleLogin = ({ email, password }) => {
     const normalisedEmail = toSafeString(email).toLowerCase()
     const normalisedPassword = toSafeString(password)
@@ -754,13 +899,26 @@ function App() {
       setUser({
         email: matchedUser.email,
         displayName: matchedUser.name,
-        loginTime: dayjs().format('DD MMM YYYY • hh:mm A'),
+        loggedAt: dayjs().toISOString(),
       })
       setAuthError('')
       return
     }
 
     setAuthError('Incorrect email or password.')
+  }
+
+  const handleLogout = () => {
+    setUser(null)
+    setAuthError('')
+    setRecords([])
+    setCurrentIndex(0)
+    setExcelMeta(null)
+    setGlossary([])
+    setGlossaryMeta(null)
+    setStorageKey('')
+    setHasUnsavedChanges(false)
+    setGlossaryPanelOpen(false)
   }
 
   const handleExcelUpload = async (event) => {
@@ -859,12 +1017,69 @@ function App() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900 transition-colors dark:bg-surface-base dark:text-slate-100">
-      <header className="border-b border-slate-200 bg-white/90 px-5 py-4 shadow-md backdrop-blur dark:border-slate-800 dark:bg-surface-raised">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3">
+    <div
+      className="flex min-h-screen flex-col bg-slate-100 text-slate-900 transition-colors dark:bg-surface-base dark:text-slate-100"
+      style={{
+        backgroundImage: `url(${appBackdropUrl})`,
+        backgroundSize: 'cover',
+        backgroundAttachment: 'fixed',
+        backgroundPosition: 'center',
+      }}
+    >
+      <GlossaryDrawer
+        open={isGlossaryPanelOpen}
+        onClose={() => setGlossaryPanelOpen(false)}
+        glossary={glossary}
+      />
+      <header className="border-b border-slate-200 bg-white/85 px-5 py-4 shadow-lg backdrop-blur dark:border-slate-800 dark:bg-surface-raised/95">
+        <div className="mx-auto w-full max-w-6xl space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <img
+                src={logoUrl}
+                alt="NEET Question Studio"
+                className="h-12 w-12 flex-shrink-0 rounded-2xl border border-white/60 bg-white/80 p-2 shadow dark:border-surface-raised/60 dark:bg-surface-base/60"
+              />
+              <div className="space-y-1">
+                <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  NEET Question Studio
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Signed in as{' '}
+                  <span className="text-slate-900 dark:text-slate-200">
+                    {user.displayName || user.email}
+                  </span>
+                  {user.displayName ? (
+                    <span className="text-slate-500"> ({user.email})</span>
+                  ) : null}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {tamilDateLabel} • {englishDateLabel}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveRecords}
+                disabled={!hasUnsavedChanges || !storageKey}
+                className="rounded-full border border-accent/60 bg-accent px-4 py-2 text-xs font-semibold text-slate-900 shadow transition hover:bg-yellow-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 dark:text-surface-base"
+              >
+                Save changes
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600 shadow transition hover:border-accent hover:text-accent dark:border-slate-700 dark:text-slate-300"
+              >
+                Logout
+              </button>
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
             {excelMeta ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/60 px-3 py-1 text-slate-600 dark:border-slate-700 dark:bg-surface-base/60 dark:text-slate-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/70 px-3 py-1 text-slate-600 shadow-sm dark:border-slate-700 dark:bg-surface-base/60 dark:text-slate-300">
                 <span
                   className="max-w-[14rem] truncate"
                   title={excelMeta.name}
@@ -876,29 +1091,32 @@ function App() {
                 </span>
               </span>
             ) : (
-              <span className="rounded-full border border-slate-300 bg-white/60 px-3 py-1 dark:border-slate-700 dark:bg-surface-base/60">
+              <span className="rounded-full border border-slate-300 bg-white/70 px-3 py-1 dark:border-slate-700 dark:bg-surface-base/60">
                 Upload question sheet
               </span>
             )}
             {glossaryMeta ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/60 px-3 py-1 text-slate-600 dark:border-slate-700 dark:bg-surface-base/60 dark:text-slate-300">
-                <span
-                  className="max-w-[14rem] truncate"
-                  title={glossaryMeta.name}
-                >
+              <button
+                type="button"
+                onClick={() => glossary.length > 0 && setGlossaryPanelOpen(true)}
+                disabled={glossary.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/70 px-3 py-1 text-slate-600 shadow-sm transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-surface-base/60 dark:text-slate-300"
+                title="View glossary terms"
+              >
+                <span className="max-w-[14rem] truncate">
                   {glossaryMeta.name}
                 </span>
                 <span className="flex-shrink-0">
                   · {glossaryMeta.total} terms
                 </span>
-              </span>
+              </button>
             ) : (
-              <span className="rounded-full border border-slate-300 bg-white/60 px-3 py-1 dark:border-slate-700 dark:bg-surface-base/60">
+              <span className="rounded-full border border-slate-300 bg-white/70 px-3 py-1 dark:border-slate-700 dark:bg-surface-base/60">
                 Glossary not loaded
               </span>
             )}
             {storageKey ? (
-              <span className="rounded-full border border-accent/40 px-3 py-1 text-accent">
+              <span className="rounded-full border border-accent/40 bg-white/70 px-3 py-1 text-accent shadow-sm dark:bg-surface-base/60">
                 {hasUnsavedChanges ? 'Unsaved edits' : 'All changes saved'}
               </span>
             ) : null}
@@ -914,24 +1132,6 @@ function App() {
               onChange={handleGlossaryUpload}
               accept=".xlsx,.xls"
             />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                NEET Question Studio
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Signed in as{' '}
-                <span className="text-slate-900 dark:text-slate-200">
-                  {user.displayName || user.email}
-                </span>
-                {user.displayName ? (
-                  <span className="text-slate-500"> ({user.email})</span>
-                ) : null}{' '}
-                • Logged in {user.loginTime}
-              </p>
-            </div>
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>
         </div>
       </header>
@@ -966,7 +1166,7 @@ function App() {
                 setHasUnsavedChanges(true)
               }}
               onSave={handleSaveRecords}
-              showSave={hasUnsavedChanges && Boolean(storageKey)}
+              showSave={false}
             />
           </div>
         </div>

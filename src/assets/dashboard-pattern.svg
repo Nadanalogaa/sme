@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f9fafb" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+    <pattern id="dots" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="2" fill="#cbd5f5" opacity="0.3" />
+      <circle cx="24" cy="24" r="2" fill="#facc15" opacity="0.25" />
+    </pattern>
+  </defs>
+  <rect width="400" height="400" fill="url(#grad)"/>
+  <rect width="400" height="400" fill="url(#dots)" />
+</svg>
