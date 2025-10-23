@@ -1004,13 +1004,28 @@ const RecordPanel = ({
 }
 
 function App() {
+  // Restore session from localStorage
+  const restoreSession = () => {
+    try {
+      const sessionData = window.localStorage.getItem('neet-session')
+      if (sessionData) {
+        return JSON.parse(sessionData)
+      }
+    } catch (error) {
+      console.error('Failed to restore session', error)
+    }
+    return null
+  }
+
+  const savedSession = restoreSession()
+
   const [authError, setAuthError] = useState('')
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(savedSession?.user || null)
   const [records, setRecords] = useState([])
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [currentIndex, setCurrentIndex] = useState(savedSession?.currentIndex || 0)
   const [glossary, setGlossary] = useState([])
-  const [excelMeta, setExcelMeta] = useState(null)
-  const [glossaryMeta, setGlossaryMeta] = useState(null)
+  const [excelMeta, setExcelMeta] = useState(savedSession?.excelMeta || null)
+  const [glossaryMeta, setGlossaryMeta] = useState(savedSession?.glossaryMeta || null)
   const [storageKey, setStorageKey] = useState('')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [users, setUsers] = useState([])
@@ -1035,6 +1050,71 @@ function App() {
     const timer = setInterval(() => setNow(new Date()), 60_000)
     return () => clearInterval(timer)
   }, [])
+
+  // Prevent data loss on page reload/close
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (hasUnsavedChanges) {
+        event.preventDefault()
+        event.returnValue = 'You have unsaved changes. Are you sure you want to leave?'
+        return event.returnValue
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
+
+  // Persist login state and current record index
+  useEffect(() => {
+    if (user && excelMeta) {
+      const sessionData = {
+        user,
+        currentIndex,
+        excelMeta,
+        glossaryMeta,
+        storageKey,
+      }
+      window.localStorage.setItem('neet-session', JSON.stringify(sessionData))
+    }
+  }, [user, currentIndex, excelMeta, glossaryMeta, storageKey])
+
+  // Restore records and glossary on session restore
+  useEffect(() => {
+    if (savedSession?.excelMeta && savedSession?.storageKey) {
+      const key = savedSession.storageKey
+      setStorageKey(key)
+
+      // Try to restore records from localStorage
+      try {
+        const raw = window.localStorage.getItem(key)
+        if (raw) {
+          const payload = JSON.parse(raw)
+          if (payload && Array.isArray(payload.records)) {
+            setRecords(payload.records)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to restore records', error)
+      }
+    }
+
+    if (savedSession?.glossaryMeta) {
+      // Try to restore glossary from localStorage
+      const glossaryKey = `${STORAGE_PREFIX}:glossary:${savedSession.glossaryMeta.name}`
+      try {
+        const raw = window.localStorage.getItem(glossaryKey)
+        if (raw) {
+          const glossaryData = JSON.parse(raw)
+          if (Array.isArray(glossaryData)) {
+            setGlossary(glossaryData)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to restore glossary', error)
+      }
+    }
+  }, []) // Run once on mount
 
   useEffect(() => {
     if (glossary.length === 0) {
@@ -1156,6 +1236,9 @@ function App() {
   }
 
   const handleLogout = () => {
+    // Clear session data
+    window.localStorage.removeItem('neet-session')
+
     setUser(null)
     setAuthError('')
     setRecords([])
@@ -1166,6 +1249,7 @@ function App() {
     setStorageKey('')
     setHasUnsavedChanges(false)
     setGlossaryPanelOpen(false)
+    setGlossarySliderOpen(false)
   }
 
   const handleExcelUpload = async (event) => {
@@ -1230,6 +1314,10 @@ function App() {
         name: file.name,
         total: parsed.length,
       })
+
+      // Persist glossary to localStorage
+      const glossaryKey = `${STORAGE_PREFIX}:glossary:${file.name}`
+      window.localStorage.setItem(glossaryKey, JSON.stringify(parsed))
     } catch (error) {
       console.error(error)
       setGlossary([])
@@ -1256,6 +1344,40 @@ function App() {
     if (!storageKey || records.length === 0) return
     persistRecordsToStorage(storageKey, records)
     setHasUnsavedChanges(false)
+  }
+
+  const handleDownloadExcel = () => {
+    if (records.length === 0) return
+
+    try {
+      // Prepare data for Excel export
+      const exportData = records.map((record) => ({
+        '_id': record.id || '',
+        'கேள்வி': record.questionTa || '',
+        'question': record.questionEn || '',
+        'விருப்பங்கள்': record.optionsTa.join(' | '),
+        'questionOptions': record.optionsEn.join(' | '),
+        'பதில்': record.answerTa || '',
+        'answers': record.answerEn || '',
+        'விளக்கம்': record.explanationTa || '',
+        'explanation': record.explanationEn || '',
+      }))
+
+      // Create a new workbook
+      const worksheet = XLSX.utils.json_to_sheet(exportData)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Questions')
+
+      // Generate filename with timestamp
+      const timestamp = dayjs().format('YYYY-MM-DD_HH-mm')
+      const filename = `NEET_Questions_${timestamp}.xlsx`
+
+      // Download the file
+      XLSX.writeFile(workbook, filename)
+    } catch (error) {
+      console.error('Failed to download Excel', error)
+      alert('Failed to download Excel file. Please try again.')
+    }
   }
 
   if (!user) {
@@ -1328,6 +1450,19 @@ function App() {
               >
                 Save changes
               </button>
+              {excelMeta && !hasUnsavedChanges && (
+                <button
+                  type="button"
+                  onClick={handleDownloadExcel}
+                  className="flex items-center gap-1.5 rounded-full border border-green-600/60 bg-green-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-green-700"
+                  title="Download updated Excel file"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download Excel
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleLogout}
@@ -1369,6 +1504,28 @@ function App() {
                   </label>
                 </div>
               )}
+
+              {/* Upload Glossary button when only Excel is uploaded */}
+              {excelMeta && !glossaryMeta && (
+                <label
+                  htmlFor="header-glossary-upload"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-indigo-600/40 bg-indigo-600 px-3 py-1 text-white shadow-sm transition hover:bg-indigo-700"
+                >
+                  <input
+                    id="header-glossary-upload"
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleGlossaryUpload}
+                    className="hidden"
+                  />
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Upload Glossary
+                </label>
+              )}
+
+              {/* Glossary filename button (opens slider) */}
               {glossaryMeta && (
                 <button
                   type="button"
@@ -1402,6 +1559,27 @@ function App() {
                   </label>
                 </button>
               )}
+
+              {/* Upload Question Sheet button when only Glossary is uploaded */}
+              {!excelMeta && glossaryMeta && (
+                <label
+                  htmlFor="header-excel-upload"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-accent/40 bg-accent px-3 py-1 text-slate-900 shadow-sm transition hover:bg-yellow-500"
+                >
+                  <input
+                    id="header-excel-upload"
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleExcelUpload}
+                    className="hidden"
+                  />
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Upload Question Sheet
+                </label>
+              )}
+
               {storageKey && (
                 <span className="rounded-full border border-accent/40 bg-white/70 px-3 py-1 text-accent shadow-sm dark:bg-surface-base/60">
                   {hasUnsavedChanges ? 'Unsaved edits' : 'All changes saved'}
