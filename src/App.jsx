@@ -824,9 +824,58 @@ const GlossarySlider = ({ open, onClose, glossary, onAddGlossary }) => {
   )
 }
 
-const InitialUploadScreen = ({ onExcelUpload, onGlossaryUpload }) => (
+const ResumeSessionPrompt = ({ sessionData, onResume, onDismiss }) => (
+  <div className="mb-8 rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-lg dark:border-blue-800 dark:bg-blue-950/30">
+    <div className="flex items-start gap-4">
+      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-white">
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <div className="flex-1">
+        <h3 className="text-lg font-bold text-blue-900 dark:text-blue-100">
+          Continue Your Last Session?
+        </h3>
+        <p className="mt-2 text-sm text-blue-700 dark:text-blue-300">
+          You have unsaved edits from your previous session.
+        </p>
+        <div className="mt-3 space-y-1 text-sm text-blue-600 dark:text-blue-400">
+          <p>• File: <span className="font-semibold">{sessionData.excelMeta?.name}</span></p>
+          <p>• Last record: <span className="font-semibold">Record {sessionData.currentIndex + 1}</span></p>
+          <p>• Total records: <span className="font-semibold">{sessionData.excelMeta?.total}</span></p>
+        </div>
+        <div className="mt-4 flex gap-3">
+          <button
+            type="button"
+            onClick={onResume}
+            className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            Yes, Continue Editing
+          </button>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded-xl border border-blue-300 px-6 py-2.5 text-sm font-semibold text-blue-700 transition hover:border-blue-400 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/30"
+          >
+            No, Start Fresh
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)
+
+const InitialUploadScreen = ({ onExcelUpload, onGlossaryUpload, savedSession, onResumeSession, onDismissSession }) => (
   <div className="flex h-full items-center justify-center">
-    <div className="grid w-full max-w-4xl grid-cols-1 gap-6 px-6 md:grid-cols-2">
+    <div className="w-full max-w-4xl px-6">
+      {savedSession && savedSession.excelMeta && (
+        <ResumeSessionPrompt
+          sessionData={savedSession}
+          onResume={onResumeSession}
+          onDismiss={onDismissSession}
+        />
+      )}
+      <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
       {/* Question Sheet Upload Section */}
       <div className="flex flex-col justify-center rounded-3xl border border-dashed border-slate-300 bg-white/70 p-10 text-center backdrop-blur dark:border-slate-700 dark:bg-slate-900/30">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent/20">
@@ -1794,6 +1843,7 @@ function App() {
   const [isGlossaryPanelOpen, setGlossaryPanelOpen] = useState(false)
   const [isGlossarySliderOpen, setGlossarySliderOpen] = useState(false)
   const [isChangesModalOpen, setChangesModalOpen] = useState(false)
+  const [savedSession, setSavedSession] = useState(null)
   const [now, setNow] = useState(() => new Date())
   const [theme, setTheme] = useState(() => initialTheme)
 
@@ -2034,10 +2084,54 @@ function App() {
         loggedAt: dayjs().toISOString(),
       })
       setAuthError('')
+
+      // Check for saved session in localStorage
+      const sessionKey = `neet-session-${normalisedEmail}`
+      const savedData = window.localStorage.getItem(sessionKey)
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData)
+          // Only show resume if there's actual data
+          if (parsed.excelMeta && parsed.records && parsed.records.length > 0) {
+            setSavedSession(parsed)
+          }
+        } catch (e) {
+          console.error('Failed to parse saved session', e)
+        }
+      }
+
       return
     }
 
     setAuthError('Incorrect email or password.')
+  }
+
+  const handleResumeSession = () => {
+    if (!savedSession) return
+
+    // Restore all data from saved session
+    setRecords(savedSession.records || [])
+    setOriginalRecords(savedSession.originalRecords || [])
+    setCurrentIndex(savedSession.currentIndex || 0)
+    setExcelMeta(savedSession.excelMeta || null)
+    setGlossary(savedSession.glossary || [])
+    setGlossaryMeta(savedSession.glossaryMeta || null)
+    setStorageKey(savedSession.storageKey || '')
+    setHasUnsavedChanges(savedSession.hasUnsavedChanges || false)
+
+    // Clear saved session UI
+    setSavedSession(null)
+  }
+
+  const handleDismissSession = () => {
+    if (!user) return
+
+    // Clear saved session from localStorage
+    const sessionKey = `neet-session-${user.email.toLowerCase()}`
+    window.localStorage.removeItem(sessionKey)
+
+    // Clear savedSession state
+    setSavedSession(null)
   }
 
   const handleLogout = () => {
@@ -2153,6 +2247,24 @@ function App() {
   const handleSaveRecords = () => {
     if (!storageKey || records.length === 0) return
     persistRecordsToStorage(storageKey, records)
+
+    // Also save full session for resume functionality
+    if (user) {
+      const sessionKey = `neet-session-${user.email.toLowerCase()}`
+      const sessionData = {
+        records,
+        originalRecords,
+        currentIndex,
+        excelMeta,
+        glossary,
+        glossaryMeta,
+        storageKey,
+        hasUnsavedChanges: false,
+        savedAt: new Date().toISOString()
+      }
+      window.localStorage.setItem(sessionKey, JSON.stringify(sessionData))
+    }
+
     setHasUnsavedChanges(false)
   }
 
@@ -2453,6 +2565,9 @@ function App() {
             <InitialUploadScreen
               onExcelUpload={handleExcelUpload}
               onGlossaryUpload={handleGlossaryUpload}
+              savedSession={savedSession}
+              onResumeSession={handleResumeSession}
+              onDismissSession={handleDismissSession}
             />
           ) : (
             <div className="flex h-full w-full flex-col overflow-hidden">
