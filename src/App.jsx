@@ -861,12 +861,21 @@ const RecordPanel = ({
 
   // Helper to render option with diff
   const renderOptionDiff = (currentOption, originalOption, optionLetter) => {
-    const hasChanged = currentOption !== originalOption
+    // Strip option letter prefix if present (e.g., "A) text" -> "text")
+    const stripPrefix = (text) => {
+      if (!text) return text
+      // Remove patterns like "A) ", "B) ", "A: ", etc.
+      return text.replace(/^[A-D][):]\s*/, '')
+    }
+
+    const cleanCurrent = stripPrefix(currentOption)
+    const cleanOriginal = stripPrefix(originalOption)
+    const hasChanged = cleanCurrent !== cleanOriginal
 
     if (!hasChanged) {
       return (
         <p>
-          <span className="font-medium">{optionLetter})</span> {currentOption || '—'}
+          <span className="font-medium">{optionLetter})</span> {cleanCurrent || '—'}
         </p>
       )
     }
@@ -877,14 +886,14 @@ const RecordPanel = ({
           <span className="font-medium">{optionLetter})</span>
           <span className="flex-1">
             <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-              {currentOption || '—'}
+              {cleanCurrent || '—'}
             </span>
           </span>
         </p>
-        {originalOption && (
+        {cleanOriginal && (
           <p className="ml-6 text-sm">
             <span className="text-red-600 line-through dark:text-red-400">
-              {originalOption}
+              {cleanOriginal}
             </span>
           </p>
         )}
@@ -929,17 +938,16 @@ const RecordPanel = ({
               nextOptions[optionIndex] = value
 
               // Auto-update answer when option changes
-              // Find which option letter (A, B, C, D) corresponds to the answer
               const optionLetters = ['A', 'B', 'C', 'D']
               const currentAnswerText = record.answerTa?.trim() || ''
-              const currentAnswerLetter = currentAnswerText.charAt(0) // Get first character (A, B, C, or D)
+              const currentAnswerLetter = currentAnswerText.charAt(0)
               const currentAnswerIndex = optionLetters.indexOf(currentAnswerLetter)
 
               let newAnswer = record.answerTa
 
               // If the changed option matches the current answer, update it
               if (currentAnswerIndex === optionIndex) {
-                // Detect the original format: "A:" or "A)" or just "A"
+                // Detect the separator: "A:" or "A)"
                 let separator = ':'
                 if (currentAnswerText.includes(')')) {
                   separator = ')'
@@ -947,7 +955,8 @@ const RecordPanel = ({
                   separator = ':'
                 }
 
-                // Replace with new option text, keeping the same format
+                // IMPORTANT: Only replace the text AFTER the separator
+                // Keep the letter and separator intact: "A) text" -> "A) newtext"
                 newAnswer = `${optionLetters[optionIndex]}${separator} ${value}`
               }
 
@@ -1045,20 +1054,24 @@ const RecordPanel = ({
                 </div>
 
                 <div>
-                  <span className="font-medium">Answer:</span>{' '}
+                  <p className="font-medium mb-1">Answer:</p>
                   {record.answerTa === originalRecord?.answerTa ? (
-                    <span>{record.answerTa || '—'}</span>
+                    <p className="ml-4">{record.answerTa || '—'}</p>
                   ) : (
-                    <span>
-                      <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                        {record.answerTa || '—'}
-                      </span>
-                      {originalRecord?.answerTa && (
-                        <span className="ml-2 text-red-600 line-through dark:text-red-400">
-                          {originalRecord.answerTa}
+                    <div className="ml-4 space-y-1">
+                      <p>
+                        <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                          {record.answerTa || '—'}
                         </span>
+                      </p>
+                      {originalRecord?.answerTa && (
+                        <p className="text-sm">
+                          <span className="text-red-600 line-through dark:text-red-400">
+                            {originalRecord.answerTa}
+                          </span>
+                        </p>
                       )}
-                    </span>
+                    </div>
                   )}
                 </div>
 
