@@ -853,9 +853,43 @@ const RecordPanel = ({
   onUpdateRecord,
   showSave,
   onSave,
+  originalRecord, // Original unedited record for comparison
 }) => {
   if (!record) {
     return null
+  }
+
+  // Helper to render option with diff
+  const renderOptionDiff = (currentOption, originalOption, optionLetter) => {
+    const hasChanged = currentOption !== originalOption
+
+    if (!hasChanged) {
+      return (
+        <p>
+          <span className="font-medium">{optionLetter})</span> {currentOption || '—'}
+        </p>
+      )
+    }
+
+    return (
+      <div className="space-y-1">
+        <p className="flex items-start gap-2">
+          <span className="font-medium">{optionLetter})</span>
+          <span className="flex-1">
+            <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+              {currentOption || '—'}
+            </span>
+          </span>
+        </p>
+        {originalOption && (
+          <p className="ml-6 text-sm">
+            <span className="text-red-600 line-through dark:text-red-400">
+              {originalOption}
+            </span>
+          </p>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -893,9 +927,24 @@ const RecordPanel = ({
             onChange={(optionIndex, value) => {
               const nextOptions = [...record.optionsTa]
               nextOptions[optionIndex] = value
+
+              // Auto-update answer when option changes
+              // Find which option letter (A, B, C, D) corresponds to the answer
+              const optionLetters = ['A', 'B', 'C', 'D']
+              const currentAnswerLetter = record.answerTa?.charAt(0) // Get first character (A, B, C, or D)
+              const currentAnswerIndex = optionLetters.indexOf(currentAnswerLetter)
+
+              let newAnswer = record.answerTa
+
+              // If the changed option matches the current answer, update it
+              if (currentAnswerIndex === optionIndex) {
+                newAnswer = `${optionLetters[optionIndex]}: ${value}`
+              }
+
               onUpdateRecord({
                 ...record,
                 optionsTa: nextOptions,
+                answerTa: newAnswer,
               })
             }}
           />
@@ -953,25 +1002,73 @@ const RecordPanel = ({
 
           <section className="space-y-3">
             <Field label="தமிழ் (read-only snapshot)">
-              <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-700 transition dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
-                <p>
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-700 transition dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+                <div>
                   <span className="font-medium">Question:</span>{' '}
-                  {record.questionTa || '—'}
-                </p>
-                <p>
-                  <span className="font-medium">Options:</span>{' '}
-                  {record.optionsTa.length > 0
-                    ? record.optionsTa.join(' | ')
-                    : '—'}
-                </p>
-                <p>
+                  {record.questionTa === originalRecord?.questionTa ? (
+                    <span>{record.questionTa || '—'}</span>
+                  ) : (
+                    <span>
+                      <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                        {record.questionTa || '—'}
+                      </span>
+                      {originalRecord?.questionTa && (
+                        <span className="ml-2 text-red-600 line-through dark:text-red-400">
+                          {originalRecord.questionTa}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <p className="font-medium mb-2">Options:</p>
+                  <div className="ml-4 space-y-2">
+                    {['A', 'B', 'C', 'D'].map((letter, idx) =>
+                      renderOptionDiff(
+                        record.optionsTa[idx],
+                        originalRecord?.optionsTa?.[idx],
+                        letter
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <div>
                   <span className="font-medium">Answer:</span>{' '}
-                  {record.answerTa || '—'}
-                </p>
-                <p>
+                  {record.answerTa === originalRecord?.answerTa ? (
+                    <span>{record.answerTa || '—'}</span>
+                  ) : (
+                    <span>
+                      <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                        {record.answerTa || '—'}
+                      </span>
+                      {originalRecord?.answerTa && (
+                        <span className="ml-2 text-red-600 line-through dark:text-red-400">
+                          {originalRecord.answerTa}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+
+                <div>
                   <span className="font-medium">Explanation:</span>{' '}
-                  {record.explanationTa || '—'}
-                </p>
+                  {record.explanationTa === originalRecord?.explanationTa ? (
+                    <span>{record.explanationTa || '—'}</span>
+                  ) : (
+                    <span>
+                      <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                        {record.explanationTa || '—'}
+                      </span>
+                      {originalRecord?.explanationTa && (
+                        <span className="ml-2 text-red-600 line-through dark:text-red-400">
+                          {originalRecord.explanationTa}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
               </div>
             </Field>
             <Field label="English (read-only)">
@@ -1022,6 +1119,7 @@ function App() {
   const [authError, setAuthError] = useState('')
   const [user, setUser] = useState(savedSession?.user || null)
   const [records, setRecords] = useState([])
+  const [originalRecords, setOriginalRecords] = useState([]) // Store original data for comparison
   const [currentIndex, setCurrentIndex] = useState(savedSession?.currentIndex || 0)
   const [glossary, setGlossary] = useState([])
   const [excelMeta, setExcelMeta] = useState(savedSession?.excelMeta || null)
@@ -1096,6 +1194,20 @@ function App() {
         }
       } catch (error) {
         console.error('Failed to restore records', error)
+      }
+
+      // Try to restore original records
+      try {
+        const originalKey = key.replace(STORAGE_PREFIX, `${STORAGE_PREFIX}:original`)
+        const originalRaw = window.localStorage.getItem(originalKey)
+        if (originalRaw) {
+          const originalData = JSON.parse(originalRaw)
+          if (Array.isArray(originalData)) {
+            setOriginalRecords(originalData)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to restore original records', error)
       }
     }
 
@@ -1181,6 +1293,11 @@ function App() {
   const currentRecord = useMemo(
     () => (records.length > 0 ? records[currentIndex] : null),
     [records, currentIndex]
+  )
+
+  const currentOriginalRecord = useMemo(
+    () => (originalRecords.length > 0 ? originalRecords[currentIndex] : null),
+    [originalRecords, currentIndex]
   )
 
   const activeGlossaryEntry = useMemo(() => {
@@ -1274,10 +1391,15 @@ function App() {
       )
 
       const key = `${STORAGE_PREFIX}:${file.name}`
+      const originalKey = `${STORAGE_PREFIX}:original:${file.name}`
       const merged = mergeWithStoredRecords(parsed, key)
+
+      // Store original data for comparison
+      window.localStorage.setItem(originalKey, JSON.stringify(parsed))
 
       setStorageKey(key)
       setRecords(merged)
+      setOriginalRecords(parsed)
       setCurrentIndex(0)
       setHasUnsavedChanges(false)
       setExcelMeta({
@@ -1601,6 +1723,7 @@ function App() {
             <div className="flex h-full flex-col overflow-hidden">
               <RecordPanel
                 record={currentRecord}
+                originalRecord={currentOriginalRecord}
                 index={currentIndex}
                 total={records.length}
                 onNext={handleNext}
