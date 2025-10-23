@@ -591,6 +591,7 @@ const GlossarySlider = ({ open, onClose, glossary, onAddGlossary }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [newTerm, setNewTerm] = useState({ english: '', tamil: '' })
+  const [copiedIndex, setCopiedIndex] = useState(null)
 
   const filteredGlossary = useMemo(() => {
     if (!searchQuery.trim()) return glossary
@@ -620,9 +621,12 @@ const GlossarySlider = ({ open, onClose, glossary, onAddGlossary }) => {
     setShowAddForm(false)
   }
 
-  const handleCopyTerm = (term) => {
+  const handleCopyTerm = (term, index) => {
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(term)
+      navigator.clipboard.writeText(term).then(() => {
+        setCopiedIndex(index)
+        setTimeout(() => setCopiedIndex(null), 1500)
+      })
     }
   }
 
@@ -723,11 +727,44 @@ const GlossarySlider = ({ open, onClose, glossary, onAddGlossary }) => {
                 <button
                   key={`${entry.term}-${entry.index}`}
                   type="button"
-                  onClick={() => handleCopyTerm(entry.term)}
-                  className="group inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-md transition hover:bg-indigo-700 hover:shadow-lg"
+                  onClick={() => handleCopyTerm(entry.term, entry.index)}
+                  className={`group relative inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-white shadow-md transition hover:shadow-lg ${
+                    copiedIndex === entry.index
+                      ? 'bg-green-600 hover:bg-green-700'
+                      : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
                   title={`${entry.term} - ${entry.description}\nClick to copy`}
                 >
                   <span>{entry.term} - {entry.description}</span>
+                  {copiedIndex === entry.index ? (
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                  )}
                 </button>
               ))}
             </div>
