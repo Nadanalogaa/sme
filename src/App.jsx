@@ -1113,18 +1113,21 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
   )
 }
 
-const SimilarContentModal = ({ open, onClose, onUpdate, similarRows, fieldName, newValue }) => {
+const SimilarContentModal = ({ open, onClose, onUpdate, similarRows, fieldName, newValue, currentRecordIndex }) => {
   if (!open) return null
+
+  // Count how many similar records found
+  const similarCount = similarRows.length
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
       <div className="relative mx-4 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-surface-raised">
         <div className="mb-4">
           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-            Similar Content Found
+            Similar Content Found!
           </h3>
           <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-            This content already exists in the following rows:
+            Found {similarCount} similar {similarCount === 1 ? 'record' : 'records'} in <span className="font-semibold text-slate-900 dark:text-slate-100">{fieldName}</span>
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {similarRows.map(rowNum => (
@@ -1140,7 +1143,7 @@ const SimilarContentModal = ({ open, onClose, onUpdate, similarRows, fieldName, 
 
         <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/30">
           <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-            Field: {fieldName}
+            Similar content in field: {fieldName}
           </p>
           <p className="text-sm text-slate-900 dark:text-slate-100">
             {newValue.length > 100 ? newValue.substring(0, 100) + '...' : newValue}
@@ -1148,7 +1151,7 @@ const SimilarContentModal = ({ open, onClose, onUpdate, similarRows, fieldName, 
         </div>
 
         <p className="mb-4 text-sm text-slate-700 dark:text-slate-300">
-          Do you want to update all these rows with your new content?
+          Do you want to update all similar records?
         </p>
 
         <div className="flex gap-3">
@@ -1157,14 +1160,14 @@ const SimilarContentModal = ({ open, onClose, onUpdate, similarRows, fieldName, 
             onClick={onUpdate}
             className="flex-1 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-yellow-500"
           >
-            Update All
+            Yes, Update
           </button>
           <button
             type="button"
             onClick={onClose}
             className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-accent hover:text-accent dark:border-slate-700 dark:text-slate-300"
           >
-            Skip
+            No, Skip
           </button>
         </div>
       </div>
@@ -1185,10 +1188,12 @@ const RecordPanel = ({
   originalRecord, // Original unedited record for comparison
   allRecords, // All records for similarity detection
   onBatchUpdate, // Handler for batch updates
+  onNavigateToRecord, // Navigate to a specific record
 }) => {
   const [showAnswerPaste, setShowAnswerPaste] = useState(false)
   const [answerClipboard, setAnswerClipboard] = useState('')
   const [similarityCheck, setSimilarityCheck] = useState(null)
+  const [visitedSimilarRecords, setVisitedSimilarRecords] = useState([])
 
   if (!record) {
     return null
@@ -1255,6 +1260,13 @@ const RecordPanel = ({
 
     // Update all similar records
     onBatchUpdate(similarRows, fieldName, newValue)
+
+    // Navigate to the first similar record to show the update
+    if (similarRows.length > 0) {
+      const firstSimilarRow = similarRows[0]
+      setVisitedSimilarRecords([...similarRows])
+      onNavigateToRecord(firstSimilarRow - 1) // Convert to 0-indexed
+    }
 
     // Close modal
     setSimilarityCheck(null)
@@ -1358,6 +1370,7 @@ const RecordPanel = ({
         similarRows={similarityCheck?.similarRows || []}
         fieldName={similarityCheck?.fieldName || ''}
         newValue={similarityCheck?.newValue || ''}
+        currentRecordIndex={index}
       />
       <RecordNavigator
         index={index}
@@ -2290,15 +2303,15 @@ function App() {
         </div>
       </header>
 
-      <main className="flex flex-1 overflow-hidden bg-slate-50/80 px-5 py-5 transition-colors dark:bg-transparent">
-        <div className="mx-auto flex h-full w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
+      <main className="flex flex-1 overflow-hidden bg-slate-50/80 px-5 py-5 items-center transition-colors dark:bg-transparent">
+        <div className="mx-auto justify-center flex h-full w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
           {!excelMeta ? (
             <InitialUploadScreen
               onExcelUpload={handleExcelUpload}
               onGlossaryUpload={handleGlossaryUpload}
             />
           ) : (
-            <div className="flex h-full flex-col overflow-hidden">
+            <div className="flex h-full w-full flex-col overflow-hidden">
               <RecordPanel
                 record={currentRecord}
                 originalRecord={currentOriginalRecord}
@@ -2309,6 +2322,7 @@ function App() {
                 glossaryEntry={activeGlossaryEntry}
                 allRecords={records}
                 onBatchUpdate={handleBatchUpdate}
+                onNavigateToRecord={(recordIndex) => setCurrentIndex(recordIndex)}
                 onUpdateRecord={(updated) => {
                   setRecords((prev) =>
                     prev.map((row, rowIndex) => {
