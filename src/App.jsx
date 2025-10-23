@@ -955,9 +955,11 @@ const RecordPanel = ({
                   separator = ':'
                 }
 
-                // IMPORTANT: Only replace the text AFTER the separator
-                // Keep the letter and separator intact: "A) text" -> "A) newtext"
-                newAnswer = `${optionLetters[optionIndex]}${separator} ${value}`
+                // Strip option letter prefix from the new value (e.g., "A) text" -> "text")
+                const cleanValue = value.replace(/^[A-D][):]\s*/, '')
+
+                // IMPORTANT: Only use the clean text without prefix
+                newAnswer = `${optionLetters[optionIndex]}${separator} ${cleanValue}`
               }
 
               onUpdateRecord({
