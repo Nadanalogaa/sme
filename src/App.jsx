@@ -775,6 +775,74 @@ const GlossarySlider = ({ open, onClose, glossary, onAddGlossary }) => {
   )
 }
 
+const InitialUploadScreen = ({ onExcelUpload, onGlossaryUpload }) => (
+  <div className="flex h-full items-center justify-center">
+    <div className="grid w-full max-w-4xl grid-cols-1 gap-6 px-6 md:grid-cols-2">
+      {/* Question Sheet Upload Section */}
+      <div className="flex flex-col justify-center rounded-3xl border border-dashed border-slate-300 bg-white/70 p-10 text-center backdrop-blur dark:border-slate-700 dark:bg-slate-900/30">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent/20">
+          <svg className="h-8 w-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">
+          Upload an Excel sheet to begin
+        </p>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          The viewer will render each question, options, answers, and explanations in Tamil and English.
+        </p>
+        <label
+          htmlFor="initial-excel-upload"
+          className="mt-6 inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg transition hover:bg-yellow-500"
+        >
+          <input
+            id="initial-excel-upload"
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={onExcelUpload}
+            className="hidden"
+          />
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          Upload Question Sheet
+        </label>
+      </div>
+
+      {/* Glossary Upload Section */}
+      <div className="flex flex-col justify-center rounded-3xl border border-dashed border-slate-300 bg-white/70 p-10 text-center backdrop-blur dark:border-slate-700 dark:bg-slate-900/30">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-600/20">
+          <svg className="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        </div>
+        <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">
+          Upload Glossary File
+        </p>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          Add reference terms and definitions to assist with question creation and review.
+        </p>
+        <label
+          htmlFor="initial-glossary-upload"
+          className="mt-6 inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border border-indigo-600/60 bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-indigo-700"
+        >
+          <input
+            id="initial-glossary-upload"
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={onGlossaryUpload}
+            className="hidden"
+          />
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          Upload Glossary
+        </label>
+      </div>
+    </div>
+  </div>
+)
+
 const RecordPanel = ({
   record,
   index,
@@ -787,17 +855,7 @@ const RecordPanel = ({
   onSave,
 }) => {
   if (!record) {
-    return (
-      <div className="flex h-full flex-col justify-center rounded-3xl border border-dashed border-slate-300 bg-white/70 p-10 text-center text-slate-500 backdrop-blur dark:border-slate-700 dark:bg-slate-900/30 dark:text-slate-400">
-        <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">
-          Upload an Excel sheet to begin
-        </p>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          The viewer will render each question, options, answers, and
-          explanations in Tamil and English.
-        </p>
-      </div>
-    )
+    return null
   }
 
   return (
@@ -1280,111 +1338,120 @@ function App() {
               <ThemeToggle theme={theme} onToggle={toggleTheme} />
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-            {excelMeta ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/70 px-3 py-1 text-slate-600 shadow-sm dark:border-slate-700 dark:bg-surface-base/60 dark:text-slate-300">
-                <span
-                  className="max-w-[14rem] truncate"
-                  title={excelMeta.name}
-                >
-                  {excelMeta.name}
-                </span>
-                <span className="flex-shrink-0">
-                  · {excelMeta.total} records
-                </span>
-              </span>
-            ) : (
-              <span className="rounded-full border border-slate-300 bg-white/70 px-3 py-1 dark:border-slate-700 dark:bg-surface-base/60">
-                Upload question sheet
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setGlossarySliderOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-accent shadow-sm transition hover:bg-accent/20"
-              title="Open glossary slider"
-            >
-              <span className="text-sm font-semibold">Glossary Slider</span>
+          {(excelMeta || glossaryMeta) && (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+              {excelMeta && (
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/70 px-3 py-1 text-slate-600 shadow-sm dark:border-slate-700 dark:bg-surface-base/60 dark:text-slate-300">
+                  <span
+                    className="max-w-[14rem] truncate"
+                    title={excelMeta.name}
+                  >
+                    {excelMeta.name}
+                  </span>
+                  <span className="flex-shrink-0">
+                    · {excelMeta.total} records
+                  </span>
+                  <label
+                    htmlFor="replace-excel"
+                    className="ml-1 cursor-pointer text-accent transition hover:text-yellow-600"
+                    title="Replace question sheet"
+                  >
+                    <input
+                      id="replace-excel"
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleExcelUpload}
+                      className="hidden"
+                    />
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </label>
+                </div>
+              )}
               {glossaryMeta && (
-                <span className="flex-shrink-0 text-xs">
-                  · {glossaryMeta.total} terms
+                <button
+                  type="button"
+                  onClick={() => glossary.length > 0 && setGlossarySliderOpen(true)}
+                  disabled={glossary.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-indigo-600/40 bg-indigo-600 px-3 py-1 text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  title="Open glossary slider"
+                >
+                  <span className="max-w-[14rem] truncate">
+                    {glossaryMeta.name}
+                  </span>
+                  <span className="flex-shrink-0">
+                    · {glossaryMeta.total} terms
+                  </span>
+                  <label
+                    htmlFor="replace-glossary"
+                    className="ml-1 cursor-pointer transition hover:opacity-80"
+                    title="Replace glossary file"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      id="replace-glossary"
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleGlossaryUpload}
+                      className="hidden"
+                    />
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </label>
+                </button>
+              )}
+              {storageKey && (
+                <span className="rounded-full border border-accent/40 bg-white/70 px-3 py-1 text-accent shadow-sm dark:bg-surface-base/60">
+                  {hasUnsavedChanges ? 'Unsaved edits' : 'All changes saved'}
                 </span>
               )}
-            </button>
-            {glossaryMeta ? (
-              <button
-                type="button"
-                onClick={() => glossary.length > 0 && setGlossaryPanelOpen(true)}
-                disabled={glossary.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white/70 px-3 py-1 text-slate-600 shadow-sm transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-surface-base/60 dark:text-slate-300"
-                title="View glossary terms"
-              >
-                <span className="max-w-[14rem] truncate">
-                  {glossaryMeta.name}
-                </span>
-                <span className="flex-shrink-0">
-                  · {glossaryMeta.total} terms
-                </span>
-              </button>
-            ) : (
-              <span className="rounded-full border border-slate-300 bg-white/70 px-3 py-1 dark:border-slate-700 dark:bg-surface-base/60">
-                Glossary not loaded
-              </span>
-            )}
-            {storageKey ? (
-              <span className="rounded-full border border-accent/40 bg-white/70 px-3 py-1 text-accent shadow-sm dark:bg-surface-base/60">
-                {hasUnsavedChanges ? 'Unsaved edits' : 'All changes saved'}
-              </span>
-            ) : null}
-            <UploadButton
-              id="upload-excel"
-              label="Upload Question Sheet"
-              onChange={handleExcelUpload}
-              accept=".xlsx,.xls"
-            />
-            <UploadButton
-              id="upload-glossary"
-              label="Upload Glossary"
-              onChange={handleGlossaryUpload}
-              accept=".xlsx,.xls"
-            />
-          </div>
+            </div>
+          )}
         </div>
       </header>
 
       <main className="flex flex-1 overflow-hidden bg-slate-50/80 px-5 py-5 transition-colors dark:bg-transparent">
         <div className="mx-auto flex h-full w-full max-w-6xl flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
-          <div className="flex h-full flex-col overflow-hidden">
-            <RecordPanel
-              record={currentRecord}
-              index={currentIndex}
-              total={records.length}
-              onNext={handleNext}
-              onPrev={handlePrev}
-              glossaryEntry={activeGlossaryEntry}
-              onUpdateRecord={(updated) => {
-                setRecords((prev) =>
-                  prev.map((row, rowIndex) => {
-                    if (rowIndex !== currentIndex) return row
-                    const next = {
-                      ...row,
-                      ...updated,
-                    }
-                    next.optionsTa = Array.isArray(updated.optionsTa)
-                      ? [...updated.optionsTa]
-                      : row.optionsTa
-                    next.optionsEn = Array.isArray(updated.optionsEn)
-                      ? [...updated.optionsEn]
-                      : row.optionsEn
-                    return next
-                  })
-                )
-                setHasUnsavedChanges(true)
-              }}
-              onSave={handleSaveRecords}
-              showSave={false}
+          {!excelMeta ? (
+            <InitialUploadScreen
+              onExcelUpload={handleExcelUpload}
+              onGlossaryUpload={handleGlossaryUpload}
             />
-          </div>
+          ) : (
+            <div className="flex h-full flex-col overflow-hidden">
+              <RecordPanel
+                record={currentRecord}
+                index={currentIndex}
+                total={records.length}
+                onNext={handleNext}
+                onPrev={handlePrev}
+                glossaryEntry={activeGlossaryEntry}
+                onUpdateRecord={(updated) => {
+                  setRecords((prev) =>
+                    prev.map((row, rowIndex) => {
+                      if (rowIndex !== currentIndex) return row
+                      const next = {
+                        ...row,
+                        ...updated,
+                      }
+                      next.optionsTa = Array.isArray(updated.optionsTa)
+                        ? [...updated.optionsTa]
+                        : row.optionsTa
+                      next.optionsEn = Array.isArray(updated.optionsEn)
+                        ? [...updated.optionsEn]
+                        : row.optionsEn
+                      return next
+                    })
+                  )
+                  setHasUnsavedChanges(true)
+                }}
+                onSave={handleSaveRecords}
+                showSave={false}
+              />
+            </div>
+          )}
         </div>
       </main>
     </div>
