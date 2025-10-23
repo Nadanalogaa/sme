@@ -909,10 +909,20 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
 
   // Find similar records for a given field
   const findSimilarRecords = (currentIndex, fieldName, value) => {
-    if (!value || !records) return []
+    if (!value || !records) {
+      console.log('findSimilarRecords: No value or records', { value, records: !!records })
+      return []
+    }
 
     const normalized = normalize(value)
     const similarRows = []
+
+    console.log('Searching for similar content:', {
+      currentIndex,
+      fieldName,
+      normalized: normalized.substring(0, 50),
+      totalRecords: records.length
+    })
 
     records.forEach((rec, idx) => {
       if (idx === currentIndex) return // Skip current record
@@ -922,11 +932,15 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
       else if (fieldName === 'பதில்') fieldValue = rec.answerTa
       else if (fieldName === 'விளக்கம்') fieldValue = rec.explanationTa
 
-      if (normalize(fieldValue) === normalized) {
+      const normalizedField = normalize(fieldValue)
+
+      if (normalizedField === normalized) {
+        console.log('Found similar at index', idx + 1)
         similarRows.push(idx + 1) // 1-indexed row number
       }
     })
 
+    console.log('Found similar rows:', similarRows)
     return similarRows
   }
 
@@ -1052,17 +1066,34 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
               {modifiedRecords.map(({ record, original, rowNumber }) => {
                 // Find similar content for this record
                 const currentIndex = rowNumber - 1 // Convert to 0-indexed
-                const similarInQuestion = normalize(record.questionTa) !== normalize(original.questionTa)
+
+                console.log(`Checking Row ${rowNumber} for similar content`)
+
+                const questionChanged = normalize(record.questionTa) !== normalize(original.questionTa)
+                const similarInQuestion = questionChanged
                   ? findSimilarRecords(currentIndex, 'கேள்வி', record.questionTa)
                   : []
-                const similarInAnswer = normalize(record.answerTa) !== normalize(original.answerTa)
+
+                const answerChanged = normalize(record.answerTa) !== normalize(original.answerTa)
+                const similarInAnswer = answerChanged
                   ? findSimilarRecords(currentIndex, 'பதில்', record.answerTa)
                   : []
-                const similarInExplanation = normalize(record.explanationTa) !== normalize(original.explanationTa)
+
+                const explanationChanged = normalize(record.explanationTa) !== normalize(original.explanationTa)
+                const similarInExplanation = explanationChanged
                   ? findSimilarRecords(currentIndex, 'விளக்கம்', record.explanationTa)
                   : []
 
                 const hasSimilar = similarInQuestion.length > 0 || similarInAnswer.length > 0 || similarInExplanation.length > 0
+
+                console.log(`Row ${rowNumber} - Has similar:`, hasSimilar, {
+                  questionChanged,
+                  similarInQuestion,
+                  answerChanged,
+                  similarInAnswer,
+                  explanationChanged,
+                  similarInExplanation
+                })
 
                 return (
                   <div
