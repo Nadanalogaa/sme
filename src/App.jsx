@@ -587,6 +587,157 @@ const GlossaryDrawer = ({ open, onClose, glossary }) => (
   </div>
 )
 
+const GlossarySlider = ({ open, onClose, glossary, onAddGlossary }) => {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newTerm, setNewTerm] = useState({ english: '', tamil: '' })
+
+  const filteredGlossary = useMemo(() => {
+    if (!searchQuery.trim()) return glossary
+
+    const query = searchQuery.toLowerCase().trim()
+    const queryWords = query.split(/\s+/)
+
+    return glossary.filter((entry) => {
+      const searchText = `${entry.term} ${entry.description}`.toLowerCase()
+
+      // Smart search: match if ANY word in the query appears in the entry
+      return queryWords.some(word => searchText.includes(word))
+    })
+  }, [glossary, searchQuery])
+
+  const handleAddGlossary = () => {
+    if (!newTerm.english.trim() || !newTerm.tamil.trim()) return
+
+    const newEntry = {
+      term: newTerm.english.trim(),
+      description: newTerm.tamil.trim(),
+      index: glossary.length,
+    }
+
+    onAddGlossary(newEntry)
+    setNewTerm({ english: '', tamil: '' })
+    setShowAddForm(false)
+  }
+
+  const handleCopyTerm = (term) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(term)
+    }
+  }
+
+  return (
+    <div
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${
+        open ? 'translate-y-0' : '-translate-y-full'
+      }`}
+    >
+      <div className="relative bg-white shadow-2xl dark:bg-surface-raised">
+        {/* Header with search and close */}
+        <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search Glossary"
+                className="w-full rounded-full border border-slate-300 bg-white/80 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-700 dark:bg-surface-base/80 dark:text-slate-100 dark:placeholder:text-slate-500"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="flex items-center gap-2 whitespace-nowrap rounded-full border border-accent/40 bg-accent/10 px-4 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent/20"
+            >
+              <span className="text-lg leading-none">+</span>
+              <span>Add Glossary</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-600 transition hover:border-accent hover:text-accent dark:border-slate-600 dark:text-slate-300"
+              aria-label="Close glossary slider"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Add Glossary Form */}
+          {showAddForm && (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-surface-base/60">
+              <p className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Add New Glossary Term
+              </p>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={newTerm.english}
+                  onChange={(e) => setNewTerm({ ...newTerm, english: e.target.value })}
+                  placeholder="English term"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-700 dark:bg-surface-base dark:text-slate-100"
+                />
+                <input
+                  type="text"
+                  value={newTerm.tamil}
+                  onChange={(e) => setNewTerm({ ...newTerm, tamil: e.target.value })}
+                  placeholder="Tamil meaning"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-700 dark:bg-surface-base dark:text-slate-100"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddGlossary}
+                    disabled={!newTerm.english.trim() || !newTerm.tamil.trim()}
+                    className="flex-1 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddForm(false)
+                      setNewTerm({ english: '', tamil: '' })
+                    }}
+                    className="flex-1 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-accent hover:text-accent dark:border-slate-700 dark:text-slate-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Glossary Pills */}
+        <div className="max-h-64 overflow-y-auto px-6 py-5">
+          {filteredGlossary.length === 0 ? (
+            <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+              {searchQuery ? 'No glossary terms match your search' : 'No glossary terms available'}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {filteredGlossary.map((entry) => (
+                <button
+                  key={`${entry.term}-${entry.index}`}
+                  type="button"
+                  onClick={() => handleCopyTerm(entry.term)}
+                  className="group inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-md transition hover:bg-indigo-700 hover:shadow-lg"
+                  title={`${entry.term} - ${entry.description}\nClick to copy`}
+                >
+                  <span>{entry.term} - {entry.description}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const RecordPanel = ({
   record,
   index,
@@ -771,6 +922,7 @@ function App() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [userDataError, setUserDataError] = useState('')
   const [isGlossaryPanelOpen, setGlossaryPanelOpen] = useState(false)
+  const [isGlossarySliderOpen, setGlossarySliderOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const [theme, setTheme] = useState(() => initialTheme)
 
@@ -992,6 +1144,14 @@ function App() {
     }
   }
 
+  const handleAddGlossaryTerm = (newEntry) => {
+    setGlossary((prev) => [...prev, newEntry])
+    setGlossaryMeta((prev) => ({
+      ...prev,
+      total: (prev?.total || 0) + 1,
+    }))
+  }
+
   const handleNext = () =>
     setCurrentIndex((prev) => Math.min(prev + 1, records.length - 1))
   const handlePrev = () =>
@@ -1026,6 +1186,12 @@ function App() {
         backgroundPosition: 'center',
       }}
     >
+      <GlossarySlider
+        open={isGlossarySliderOpen}
+        onClose={() => setGlossarySliderOpen(false)}
+        glossary={glossary}
+        onAddGlossary={handleAddGlossaryTerm}
+      />
       <GlossaryDrawer
         open={isGlossaryPanelOpen}
         onClose={() => setGlossaryPanelOpen(false)}
@@ -1095,6 +1261,19 @@ function App() {
                 Upload question sheet
               </span>
             )}
+            <button
+              type="button"
+              onClick={() => setGlossarySliderOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-accent shadow-sm transition hover:bg-accent/20"
+              title="Open glossary slider"
+            >
+              <span className="text-sm font-semibold">Glossary Slider</span>
+              {glossaryMeta && (
+                <span className="flex-shrink-0 text-xs">
+                  · {glossaryMeta.total} terms
+                </span>
+              )}
+            </button>
             {glossaryMeta ? (
               <button
                 type="button"
