@@ -505,21 +505,45 @@ const RecordNavigator = ({
   </div>
 )
 
-const OptionsGrid = ({ label, options, language, onChange }) => (
-  <Field label={label}>
-    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-      {options.map((option, idx) => (
-        <textarea
-          key={`${language}-${idx}`}
-          value={option}
-          onChange={(event) => onChange(idx, event.target.value)}
-          rows={2}
-          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none"
-        />
-      ))}
-    </div>
-  </Field>
-)
+const OptionsGrid = ({ label, options, language, onChange }) => {
+  const handleFieldClick = async (idx, currentValue) => {
+    try {
+      // Check if clipboard has content
+      const clipboardText = await navigator.clipboard.readText()
+
+      if (clipboardText && clipboardText.trim()) {
+        // Ask user if they want to paste
+        const confirmPaste = window.confirm(
+          `Paste "${clipboardText.substring(0, 50)}${clipboardText.length > 50 ? '...' : ''}"?`
+        )
+
+        if (confirmPaste) {
+          onChange(idx, clipboardText)
+        }
+      }
+    } catch (error) {
+      // Clipboard access denied or not available, ignore
+      console.log('Clipboard access not available')
+    }
+  }
+
+  return (
+    <Field label={label}>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        {options.map((option, idx) => (
+          <textarea
+            key={`${language}-${idx}`}
+            value={option}
+            onChange={(event) => onChange(idx, event.target.value)}
+            onClick={() => handleFieldClick(idx, option)}
+            rows={2}
+            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none cursor-pointer"
+          />
+        ))}
+      </div>
+    </Field>
+  )
+}
 
 const GlossaryDrawer = ({ open, onClose, glossary }) => (
   <div
@@ -999,8 +1023,26 @@ const RecordPanel = ({
                     answerTa: event.target.value,
                   })
                 }
+                onClick={async () => {
+                  try {
+                    const clipboardText = await navigator.clipboard.readText()
+                    if (clipboardText && clipboardText.trim()) {
+                      const confirmPaste = window.confirm(
+                        `Paste "${clipboardText.substring(0, 50)}${clipboardText.length > 50 ? '...' : ''}"?`
+                      )
+                      if (confirmPaste) {
+                        onUpdateRecord({
+                          ...record,
+                          answerTa: clipboardText,
+                        })
+                      }
+                    }
+                  } catch (error) {
+                    console.log('Clipboard access not available')
+                  }
+                }}
                 rows={2}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none cursor-pointer"
               />
             </Field>
           </div>
