@@ -969,23 +969,18 @@ const RecordPanel = ({
     }
 
     return (
-      <div className="space-y-1">
-        <p className="flex items-start gap-2">
-          <span className="font-medium">{optionLetter})</span>
-          <span className="flex-1">
-            <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-              {cleanCurrent || '—'}
-            </span>
-          </span>
-        </p>
+      <p>
+        <span className="font-medium">{optionLetter})</span>{' '}
         {cleanOriginal && (
-          <p className="ml-6 text-sm">
-            <span className="text-red-600 line-through dark:text-red-400">
-              {cleanOriginal}
-            </span>
-          </p>
+          <span className="text-sm text-red-600 line-through dark:text-red-400">
+            {cleanOriginal}
+          </span>
         )}
-      </div>
+        {' '}
+        <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+          {cleanCurrent || '—'}
+        </span>
+      </p>
     )
   }
 
@@ -1157,24 +1152,21 @@ const RecordPanel = ({
                 </div>
 
                 <div>
-                  <p className="font-medium mb-1">Answer:</p>
+                  <span className="font-medium">Answer:</span>{' '}
                   {record.answerTa === originalRecord?.answerTa ? (
-                    <p className="ml-4">{record.answerTa || '—'}</p>
+                    <span>{record.answerTa || '—'}</span>
                   ) : (
-                    <div className="ml-4 space-y-1">
-                      <p>
-                        <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                          {record.answerTa || '—'}
-                        </span>
-                      </p>
+                    <span>
                       {originalRecord?.answerTa && (
-                        <p className="text-sm">
-                          <span className="text-red-600 line-through dark:text-red-400">
-                            {originalRecord.answerTa}
-                          </span>
-                        </p>
+                        <span className="text-sm text-red-600 line-through dark:text-red-400">
+                          {originalRecord.answerTa}
+                        </span>
                       )}
-                    </div>
+                      {' '}
+                      <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                        {record.answerTa || '—'}
+                      </span>
+                    </span>
                   )}
                 </div>
 
