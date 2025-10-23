@@ -903,7 +903,8 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
   // Helper to normalize text for comparison
   const normalize = (text) => {
     if (!text) return ''
-    return text.trim().toLowerCase()
+    // Remove trailing punctuation (dots, commas, etc.) and normalize
+    return text.trim().toLowerCase().replace(/[.,:;!?]+$/g, '')
   }
 
   // Find all modified records
@@ -1112,6 +1113,65 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
   )
 }
 
+const SimilarContentModal = ({ open, onClose, onUpdate, similarRows, fieldName, newValue }) => {
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+      <div className="relative mx-4 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-surface-raised">
+        <div className="mb-4">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            Similar Content Found
+          </h3>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+            This content already exists in the following rows:
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {similarRows.map(rowNum => (
+              <span
+                key={rowNum}
+                className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+              >
+                Row #{rowNum}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/30">
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+            Field: {fieldName}
+          </p>
+          <p className="text-sm text-slate-900 dark:text-slate-100">
+            {newValue.length > 100 ? newValue.substring(0, 100) + '...' : newValue}
+          </p>
+        </div>
+
+        <p className="mb-4 text-sm text-slate-700 dark:text-slate-300">
+          Do you want to update all these rows with your new content?
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onUpdate}
+            className="flex-1 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-yellow-500"
+          >
+            Update All
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-accent hover:text-accent dark:border-slate-700 dark:text-slate-300"
+          >
+            Skip
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const RecordPanel = ({
   record,
   index,
@@ -1123,12 +1183,89 @@ const RecordPanel = ({
   showSave,
   onSave,
   originalRecord, // Original unedited record for comparison
+  allRecords, // All records for similarity detection
+  onBatchUpdate, // Handler for batch updates
 }) => {
   const [showAnswerPaste, setShowAnswerPaste] = useState(false)
   const [answerClipboard, setAnswerClipboard] = useState('')
+  const [similarityCheck, setSimilarityCheck] = useState(null)
 
   if (!record) {
     return null
+  }
+
+  // Helper to normalize text for comparison
+  const normalize = (text) => {
+    if (!text) return ''
+    // Remove trailing punctuation (dots, commas, etc.) and normalize
+    return text.trim().toLowerCase().replace(/[.,:;!?]+$/g, '')
+  }
+
+  // Find similar content in other rows
+  const findSimilarRows = (fieldName, value) => {
+    if (!value || !allRecords) return []
+
+    const normalized = normalize(value)
+    const similarRows = []
+
+    allRecords.forEach((rec, idx) => {
+      if (idx === index) return // Skip current record
+
+      let fieldValue = ''
+      if (fieldName === 'கேள்வி') fieldValue = rec.questionTa
+      else if (fieldName === 'பதில்') fieldValue = rec.answerTa
+      else if (fieldName === 'விளக்கம்') fieldValue = rec.explanationTa
+      else if (fieldName.startsWith('விருப்பங்கள்')) {
+        // For options, check individual option
+        const optionIndex = parseInt(fieldName.split('-')[1])
+        fieldValue = rec.optionsTa[optionIndex]
+      }
+
+      if (normalize(fieldValue) === normalized) {
+        similarRows.push(idx + 1) // 1-indexed row number
+      }
+    })
+
+    return similarRows
+  }
+
+  // Handle similarity check and update
+  const checkSimilarityAndUpdate = (fieldName, newValue, updateFn) => {
+    const similarRows = findSimilarRows(fieldName, newValue)
+
+    if (similarRows.length > 0) {
+      setSimilarityCheck({
+        fieldName,
+        newValue,
+        similarRows,
+        updateFn
+      })
+    } else {
+      updateFn()
+    }
+  }
+
+  const handleBatchUpdateConfirm = () => {
+    if (!similarityCheck) return
+
+    const { fieldName, newValue, updateFn, similarRows } = similarityCheck
+
+    // Update current record
+    updateFn()
+
+    // Update all similar records
+    onBatchUpdate(similarRows, fieldName, newValue)
+
+    // Close modal
+    setSimilarityCheck(null)
+  }
+
+  const handleSimilarityModalClose = () => {
+    if (!similarityCheck) return
+
+    // Just update current record, skip others
+    similarityCheck.updateFn()
+    setSimilarityCheck(null)
   }
 
   const handleAnswerFocus = async () => {
@@ -1178,7 +1315,8 @@ const RecordPanel = ({
 
     const normalize = (text) => {
       if (!text) return ''
-      return text.trim().toLowerCase()
+      // Remove trailing punctuation (dots, commas, etc.) and normalize
+      return text.trim().toLowerCase().replace(/[.,:;!?]+$/g, '')
     }
 
     const cleanCurrent = stripPrefix(currentOption)
@@ -1213,6 +1351,14 @@ const RecordPanel = ({
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-xl backdrop-blur dark:border-slate-800 dark:bg-surface-raised dark:shadow-2xl dark:shadow-black/40">
+      <SimilarContentModal
+        open={!!similarityCheck}
+        onClose={handleSimilarityModalClose}
+        onUpdate={handleBatchUpdateConfirm}
+        similarRows={similarityCheck?.similarRows || []}
+        fieldName={similarityCheck?.fieldName || ''}
+        newValue={similarityCheck?.newValue || ''}
+      />
       <RecordNavigator
         index={index}
         total={total}
@@ -1234,6 +1380,12 @@ const RecordPanel = ({
                   questionTa: event.target.value,
                 })
               }
+              onBlur={(event) => {
+                const newValue = event.target.value
+                if (newValue && newValue !== originalRecord?.questionTa) {
+                  checkSimilarityAndUpdate('கேள்வி', newValue, () => {})
+                }
+              }}
               rows={2}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none"
             />
@@ -1337,6 +1489,12 @@ const RecordPanel = ({
                   explanationTa: event.target.value,
                 })
               }
+              onBlur={(event) => {
+                const newValue = event.target.value
+                if (newValue && newValue !== originalRecord?.explanationTa) {
+                  checkSimilarityAndUpdate('விளக்கம்', newValue, () => {})
+                }
+              }}
               rows={3}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none"
             />
@@ -1670,7 +1828,8 @@ function App() {
 
     const normalize = (text) => {
       if (!text) return ''
-      return text.trim().toLowerCase()
+      // Remove trailing punctuation (dots, commas, etc.) and normalize
+      return text.trim().toLowerCase().replace(/[.,:;!?]+$/g, '')
     }
 
     return records.filter((record, index) => {
@@ -1872,6 +2031,33 @@ function App() {
       console.error('Failed to download Excel', error)
       alert('Failed to download Excel file. Please try again.')
     }
+  }
+
+  // Batch update handler for similarity updates
+  const handleBatchUpdate = (rowNumbers, fieldName, newValue) => {
+    setRecords((prev) =>
+      prev.map((record, idx) => {
+        const rowNum = idx + 1 // 1-indexed
+        if (!rowNumbers.includes(rowNum)) return record
+
+        // Update the specific field
+        const updated = { ...record }
+        if (fieldName === 'கேள்வி') {
+          updated.questionTa = newValue
+        } else if (fieldName === 'பதில்') {
+          updated.answerTa = newValue
+        } else if (fieldName === 'விளக்கம்') {
+          updated.explanationTa = newValue
+        } else if (fieldName.startsWith('விருப்பங்கள்')) {
+          const optionIndex = parseInt(fieldName.split('-')[1])
+          updated.optionsTa = [...record.optionsTa]
+          updated.optionsTa[optionIndex] = newValue
+        }
+
+        return updated
+      })
+    )
+    setHasUnsavedChanges(true)
   }
 
   if (!user) {
@@ -2121,6 +2307,8 @@ function App() {
                 onNext={handleNext}
                 onPrev={handlePrev}
                 glossaryEntry={activeGlossaryEntry}
+                allRecords={records}
+                onBatchUpdate={handleBatchUpdate}
                 onUpdateRecord={(updated) => {
                   setRecords((prev) =>
                     prev.map((row, rowIndex) => {
