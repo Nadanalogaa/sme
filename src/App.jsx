@@ -506,43 +506,64 @@ const RecordNavigator = ({
 )
 
 const OptionsGrid = ({ label, options, language, onChange }) => {
-  const handleFieldClick = async (idx, currentValue) => {
+  const [focusedIndex, setFocusedIndex] = useState(null)
+  const [clipboardContent, setClipboardContent] = useState('')
+
+  const handleFieldFocus = async (idx) => {
     try {
-      // Check if clipboard has content
       const clipboardText = await navigator.clipboard.readText()
-
       if (clipboardText && clipboardText.trim()) {
-        // Extract option letter if present (A), B), C), D))
-        const optionLetterMatch = currentValue.match(/^([A-D])[):]\s*/)
-
-        if (optionLetterMatch) {
-          // Keep the option letter and replace the rest
-          const optionLetter = optionLetterMatch[0] // "A) " or "A: "
-          const newValue = `${optionLetter}${clipboardText.trim()}`
-          onChange(idx, newValue)
-        } else {
-          // No option letter, just paste the text
-          onChange(idx, clipboardText.trim())
-        }
+        setClipboardContent(clipboardText.trim())
+        setFocusedIndex(idx)
       }
     } catch (error) {
-      // Clipboard access denied or not available, ignore
       console.log('Clipboard access not available')
     }
+  }
+
+  const handlePaste = (idx, currentValue) => {
+    if (!clipboardContent) return
+
+    // Extract option letter if present (A), B), C), D))
+    const optionLetterMatch = currentValue.match(/^([A-D])[):]\s*/)
+
+    if (optionLetterMatch) {
+      // Keep the option letter and replace the rest
+      const optionLetter = optionLetterMatch[0] // "A) " or "A: "
+      const newValue = `${optionLetter}${clipboardContent}`
+      onChange(idx, newValue)
+    } else {
+      // No option letter, just paste the text
+      onChange(idx, clipboardContent)
+    }
+
+    setFocusedIndex(null)
+    setClipboardContent('')
   }
 
   return (
     <Field label={label}>
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         {options.map((option, idx) => (
-          <textarea
-            key={`${language}-${idx}`}
-            value={option}
-            onChange={(event) => onChange(idx, event.target.value)}
-            onClick={() => handleFieldClick(idx, option)}
-            rows={2}
-            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none cursor-pointer"
-          />
+          <div key={`${language}-${idx}`} className="relative">
+            <textarea
+              value={option}
+              onChange={(event) => onChange(idx, event.target.value)}
+              onFocus={() => handleFieldFocus(idx)}
+              onBlur={() => setTimeout(() => setFocusedIndex(null), 200)}
+              rows={2}
+              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none"
+            />
+            {focusedIndex === idx && clipboardContent && (
+              <button
+                type="button"
+                onClick={() => handlePaste(idx, option)}
+                className="absolute right-2 top-2 rounded-md bg-accent px-3 py-1 text-xs font-semibold text-slate-900 shadow-md transition hover:bg-yellow-500"
+              >
+                Paste Here
+              </button>
+            )}
+          </div>
         ))}
       </div>
     </Field>
@@ -883,8 +904,47 @@ const RecordPanel = ({
   onSave,
   originalRecord, // Original unedited record for comparison
 }) => {
+  const [showAnswerPaste, setShowAnswerPaste] = useState(false)
+  const [answerClipboard, setAnswerClipboard] = useState('')
+
   if (!record) {
     return null
+  }
+
+  const handleAnswerFocus = async () => {
+    try {
+      const clipboardText = await navigator.clipboard.readText()
+      if (clipboardText && clipboardText.trim()) {
+        setAnswerClipboard(clipboardText.trim())
+        setShowAnswerPaste(true)
+      }
+    } catch (error) {
+      console.log('Clipboard access not available')
+    }
+  }
+
+  const handleAnswerPaste = () => {
+    if (!answerClipboard) return
+
+    const currentValue = record.answerTa || ''
+    const answerLetterMatch = currentValue.match(/^([A-D])[):]\s*/)
+
+    if (answerLetterMatch) {
+      const answerLetter = answerLetterMatch[0]
+      const newValue = `${answerLetter}${answerClipboard}`
+      onUpdateRecord({
+        ...record,
+        answerTa: newValue,
+      })
+    } else {
+      onUpdateRecord({
+        ...record,
+        answerTa: answerClipboard,
+      })
+    }
+
+    setShowAnswerPaste(false)
+    setAnswerClipboard('')
   }
 
   // Helper to render option with diff
@@ -1019,45 +1079,30 @@ const RecordPanel = ({
               </div>
             </Field>
             <Field label={FIELD_LABELS.answerTa}>
-              <textarea
-                value={record.answerTa}
-                onChange={(event) =>
-                  onUpdateRecord({
-                    ...record,
-                    answerTa: event.target.value,
-                  })
-                }
-                onClick={async () => {
-                  try {
-                    const clipboardText = await navigator.clipboard.readText()
-                    if (clipboardText && clipboardText.trim()) {
-                      // Extract answer letter if present (A), B), C), D), A:, etc.)
-                      const currentValue = record.answerTa || ''
-                      const answerLetterMatch = currentValue.match(/^([A-D])[):]\s*/)
-
-                      if (answerLetterMatch) {
-                        // Keep the answer letter and replace the rest
-                        const answerLetter = answerLetterMatch[0] // "A) " or "A: "
-                        const newValue = `${answerLetter}${clipboardText.trim()}`
-                        onUpdateRecord({
-                          ...record,
-                          answerTa: newValue,
-                        })
-                      } else {
-                        // No answer letter, just paste the text
-                        onUpdateRecord({
-                          ...record,
-                          answerTa: clipboardText.trim(),
-                        })
-                      }
-                    }
-                  } catch (error) {
-                    console.log('Clipboard access not available')
+              <div className="relative">
+                <textarea
+                  value={record.answerTa}
+                  onChange={(event) =>
+                    onUpdateRecord({
+                      ...record,
+                      answerTa: event.target.value,
+                    })
                   }
-                }}
-                rows={2}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none cursor-pointer"
-              />
+                  onFocus={handleAnswerFocus}
+                  onBlur={() => setTimeout(() => setShowAnswerPaste(false), 200)}
+                  rows={2}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/40 dark:border-slate-800 dark:bg-surface-base dark:text-slate-100 resize-none"
+                />
+                {showAnswerPaste && answerClipboard && (
+                  <button
+                    type="button"
+                    onClick={handleAnswerPaste}
+                    className="absolute right-2 top-2 rounded-md bg-accent px-3 py-1 text-xs font-semibold text-slate-900 shadow-md transition hover:bg-yellow-500"
+                  >
+                    Paste Here
+                  </button>
+                )}
+              </div>
             </Field>
           </div>
 
