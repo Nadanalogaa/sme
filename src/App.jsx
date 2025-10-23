@@ -956,9 +956,16 @@ const RecordPanel = ({
       return text.replace(/^[A-D][):]\s*/, '')
     }
 
+    const normalize = (text) => {
+      if (!text) return ''
+      return text.trim().toLowerCase()
+    }
+
     const cleanCurrent = stripPrefix(currentOption)
     const cleanOriginal = stripPrefix(originalOption)
-    const hasChanged = cleanCurrent !== cleanOriginal
+
+    // Compare normalized versions to handle case/spacing differences
+    const hasChanged = normalize(cleanCurrent) !== normalize(cleanOriginal)
 
     if (!hasChanged) {
       return (
@@ -1122,18 +1129,19 @@ const RecordPanel = ({
               <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-700 transition dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
                 <div>
                   <span className="font-medium">Question:</span>{' '}
-                  {record.questionTa === originalRecord?.questionTa ? (
+                  {record.questionTa?.trim().toLowerCase() === originalRecord?.questionTa?.trim().toLowerCase() ? (
                     <span>{record.questionTa || '—'}</span>
                   ) : (
                     <span>
-                      <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                        {record.questionTa || '—'}
-                      </span>
                       {originalRecord?.questionTa && (
-                        <span className="ml-2 text-red-600 line-through dark:text-red-400">
+                        <span className="text-red-600 line-through dark:text-red-400">
                           {originalRecord.questionTa}
                         </span>
                       )}
+                      {' '}
+                      <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                        {record.questionTa || '—'}
+                      </span>
                     </span>
                   )}
                 </div>
@@ -1153,7 +1161,7 @@ const RecordPanel = ({
 
                 <div>
                   <span className="font-medium">Answer:</span>{' '}
-                  {record.answerTa === originalRecord?.answerTa ? (
+                  {record.answerTa?.trim().toLowerCase() === originalRecord?.answerTa?.trim().toLowerCase() ? (
                     <span>{record.answerTa || '—'}</span>
                   ) : (
                     <span>
@@ -1172,18 +1180,19 @@ const RecordPanel = ({
 
                 <div>
                   <span className="font-medium">Explanation:</span>{' '}
-                  {record.explanationTa === originalRecord?.explanationTa ? (
+                  {record.explanationTa?.trim().toLowerCase() === originalRecord?.explanationTa?.trim().toLowerCase() ? (
                     <span>{record.explanationTa || '—'}</span>
                   ) : (
                     <span>
-                      <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                        {record.explanationTa || '—'}
-                      </span>
                       {originalRecord?.explanationTa && (
-                        <span className="ml-2 text-red-600 line-through dark:text-red-400">
+                        <span className="text-red-600 line-through dark:text-red-400">
                           {originalRecord.explanationTa}
                         </span>
                       )}
+                      {' '}
+                      <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                        {record.explanationTa || '—'}
+                      </span>
                     </span>
                   )}
                 </div>
