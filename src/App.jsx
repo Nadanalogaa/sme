@@ -1801,16 +1801,16 @@ function App() {
     return null
   }
 
-  const savedSession = restoreSession()
+  const oldSession = restoreSession()
 
   const [authError, setAuthError] = useState('')
-  const [user, setUser] = useState(savedSession?.user || null)
+  const [user, setUser] = useState(oldSession?.user || null)
   const [records, setRecords] = useState([])
   const [originalRecords, setOriginalRecords] = useState([]) // Store original data for comparison
-  const [currentIndex, setCurrentIndex] = useState(savedSession?.currentIndex || 0)
+  const [currentIndex, setCurrentIndex] = useState(oldSession?.currentIndex || 0)
   const [glossary, setGlossary] = useState([])
-  const [excelMeta, setExcelMeta] = useState(savedSession?.excelMeta || null)
-  const [glossaryMeta, setGlossaryMeta] = useState(savedSession?.glossaryMeta || null)
+  const [excelMeta, setExcelMeta] = useState(oldSession?.excelMeta || null)
+  const [glossaryMeta, setGlossaryMeta] = useState(oldSession?.glossaryMeta || null)
   const [storageKey, setStorageKey] = useState('')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [users, setUsers] = useState([])
@@ -1868,8 +1868,8 @@ function App() {
 
   // Restore records and glossary on session restore
   useEffect(() => {
-    if (savedSession?.excelMeta && savedSession?.storageKey) {
-      const key = savedSession.storageKey
+    if (oldSession?.excelMeta && oldSession?.storageKey) {
+      const key = oldSession.storageKey
       setStorageKey(key)
 
       // Try to restore records from localStorage
@@ -1900,9 +1900,9 @@ function App() {
       }
     }
 
-    if (savedSession?.glossaryMeta) {
+    if (oldSession?.glossaryMeta) {
       // Try to restore glossary from localStorage
-      const glossaryKey = `${STORAGE_PREFIX}:glossary:${savedSession.glossaryMeta.name}`
+      const glossaryKey = `${STORAGE_PREFIX}:glossary:${oldSession.glossaryMeta.name}`
       try {
         const raw = window.localStorage.getItem(glossaryKey)
         if (raw) {
