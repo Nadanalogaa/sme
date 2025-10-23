@@ -621,9 +621,9 @@ const GlossarySlider = ({ open, onClose, glossary, onAddGlossary }) => {
     setShowAddForm(false)
   }
 
-  const handleCopyTerm = (term, index) => {
+  const handleCopyTerm = (description, index) => {
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(term).then(() => {
+      navigator.clipboard.writeText(description).then(() => {
         setCopiedIndex(index)
         setTimeout(() => setCopiedIndex(null), 1500)
       })
@@ -727,13 +727,13 @@ const GlossarySlider = ({ open, onClose, glossary, onAddGlossary }) => {
                 <button
                   key={`${entry.term}-${entry.index}`}
                   type="button"
-                  onClick={() => handleCopyTerm(entry.term, entry.index)}
+                  onClick={() => handleCopyTerm(entry.description, entry.index)}
                   className={`group relative inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-white shadow-md transition hover:shadow-lg ${
                     copiedIndex === entry.index
                       ? 'bg-green-600 hover:bg-green-700'
                       : 'bg-indigo-600 hover:bg-indigo-700'
                   }`}
-                  title={`${entry.term} - ${entry.description}\nClick to copy`}
+                  title={`${entry.term} - ${entry.description}\nClick to copy Tamil text`}
                 >
                   <span>{entry.term} - {entry.description}</span>
                   {copiedIndex === entry.index ? (
