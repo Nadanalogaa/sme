@@ -512,13 +512,17 @@ const OptionsGrid = ({ label, options, language, onChange }) => {
       const clipboardText = await navigator.clipboard.readText()
 
       if (clipboardText && clipboardText.trim()) {
-        // Ask user if they want to paste
-        const confirmPaste = window.confirm(
-          `Paste "${clipboardText.substring(0, 50)}${clipboardText.length > 50 ? '...' : ''}"?`
-        )
+        // Extract option letter if present (A), B), C), D))
+        const optionLetterMatch = currentValue.match(/^([A-D])[):]\s*/)
 
-        if (confirmPaste) {
-          onChange(idx, clipboardText)
+        if (optionLetterMatch) {
+          // Keep the option letter and replace the rest
+          const optionLetter = optionLetterMatch[0] // "A) " or "A: "
+          const newValue = `${optionLetter}${clipboardText.trim()}`
+          onChange(idx, newValue)
+        } else {
+          // No option letter, just paste the text
+          onChange(idx, clipboardText.trim())
         }
       }
     } catch (error) {
@@ -1027,13 +1031,23 @@ const RecordPanel = ({
                   try {
                     const clipboardText = await navigator.clipboard.readText()
                     if (clipboardText && clipboardText.trim()) {
-                      const confirmPaste = window.confirm(
-                        `Paste "${clipboardText.substring(0, 50)}${clipboardText.length > 50 ? '...' : ''}"?`
-                      )
-                      if (confirmPaste) {
+                      // Extract answer letter if present (A), B), C), D), A:, etc.)
+                      const currentValue = record.answerTa || ''
+                      const answerLetterMatch = currentValue.match(/^([A-D])[):]\s*/)
+
+                      if (answerLetterMatch) {
+                        // Keep the answer letter and replace the rest
+                        const answerLetter = answerLetterMatch[0] // "A) " or "A: "
+                        const newValue = `${answerLetter}${clipboardText.trim()}`
                         onUpdateRecord({
                           ...record,
-                          answerTa: clipboardText,
+                          answerTa: newValue,
+                        })
+                      } else {
+                        // No answer letter, just paste the text
+                        onUpdateRecord({
+                          ...record,
+                          answerTa: clipboardText.trim(),
                         })
                       }
                     }
