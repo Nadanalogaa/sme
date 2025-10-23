@@ -907,10 +907,10 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
     return text.trim().toLowerCase().replace(/[.,:;!?]+$/g, '')
   }
 
-  // Find similar records for a given field
+  // Find similar records for a given field - search in BOTH current records AND original records
   const findSimilarRecords = (currentIndex, fieldName, value) => {
-    if (!value || !records) {
-      console.log('findSimilarRecords: No value or records', { value, records: !!records })
+    if (!value) {
+      console.log('findSimilarRecords: No value')
       return []
     }
 
@@ -921,9 +921,11 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
       currentIndex,
       fieldName,
       normalized: normalized.substring(0, 50),
-      totalRecords: records.length
+      totalRecords: records.length,
+      totalOriginalRecords: originalRecords.length
     })
 
+    // Search in current records (edited state)
     records.forEach((rec, idx) => {
       if (idx === currentIndex) return // Skip current record
 
@@ -934,8 +936,25 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
 
       const normalizedField = normalize(fieldValue)
 
-      if (normalizedField === normalized) {
-        console.log('Found similar at index', idx + 1)
+      if (normalizedField === normalized && !similarRows.includes(idx + 1)) {
+        console.log('Found similar in current records at index', idx + 1)
+        similarRows.push(idx + 1) // 1-indexed row number
+      }
+    })
+
+    // Also search in original records to find duplicates that existed in Excel
+    originalRecords.forEach((rec, idx) => {
+      if (idx === currentIndex) return // Skip current record
+
+      let fieldValue = ''
+      if (fieldName === 'கேள்வி') fieldValue = rec.questionTa
+      else if (fieldName === 'பதில்') fieldValue = rec.answerTa
+      else if (fieldName === 'விளக்கம்') fieldValue = rec.explanationTa
+
+      const normalizedField = normalize(fieldValue)
+
+      if (normalizedField === normalized && !similarRows.includes(idx + 1)) {
+        console.log('Found similar in original records at index', idx + 1)
         similarRows.push(idx + 1) // 1-indexed row number
       }
     })
