@@ -938,6 +938,7 @@ const InitialUploadScreen = ({ onExcelUpload, onGlossaryUpload, savedSession, on
         </label>
       </div>
     </div>
+    </div>
   </div>
 )
 
@@ -958,21 +959,10 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
 
   // Find similar records for a given field - search in BOTH current records AND original records
   const findSimilarRecords = (currentIndex, fieldName, value) => {
-    if (!value) {
-      console.log('findSimilarRecords: No value')
-      return []
-    }
+    if (!value) return []
 
     const normalized = normalize(value)
     const similarRows = []
-
-    console.log('Searching for similar content:', {
-      currentIndex,
-      fieldName,
-      normalized: normalized.substring(0, 50),
-      totalRecords: records.length,
-      totalOriginalRecords: originalRecords.length
-    })
 
     // Search in current records (edited state)
     records.forEach((rec, idx) => {
@@ -986,7 +976,6 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
       const normalizedField = normalize(fieldValue)
 
       if (normalizedField === normalized && !similarRows.includes(idx + 1)) {
-        console.log('Found similar in current records at index', idx + 1)
         similarRows.push(idx + 1) // 1-indexed row number
       }
     })
@@ -1003,12 +992,10 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
       const normalizedField = normalize(fieldValue)
 
       if (normalizedField === normalized && !similarRows.includes(idx + 1)) {
-        console.log('Found similar in original records at index', idx + 1)
         similarRows.push(idx + 1) // 1-indexed row number
       }
     })
 
-    console.log('Found similar rows:', similarRows)
     return similarRows
   }
 
@@ -1135,8 +1122,6 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
                 // Find similar content for this record
                 const currentIndex = rowNumber - 1 // Convert to 0-indexed
 
-                console.log(`Checking Row ${rowNumber} for similar content`)
-
                 const questionChanged = normalize(record.questionTa) !== normalize(original.questionTa)
                 const similarInQuestion = questionChanged
                   ? findSimilarRecords(currentIndex, 'கேள்வி', record.questionTa)
@@ -1153,15 +1138,6 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
                   : []
 
                 const hasSimilar = similarInQuestion.length > 0 || similarInAnswer.length > 0 || similarInExplanation.length > 0
-
-                console.log(`Row ${rowNumber} - Has similar:`, hasSimilar, {
-                  questionChanged,
-                  similarInQuestion,
-                  answerChanged,
-                  similarInAnswer,
-                  explanationChanged,
-                  similarInExplanation
-                })
 
                 return (
                   <div
