@@ -892,8 +892,13 @@ const InitialUploadScreen = ({ onExcelUpload, onGlossaryUpload }) => (
   </div>
 )
 
-const ChangesModal = ({ open, onClose, records, originalRecords }) => {
+const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRecord }) => {
   if (!open) return null
+
+  const handleRowClick = (rowNumber) => {
+    onNavigateToRecord(rowNumber - 1) // Convert to 0-indexed
+    onClose()
+  }
 
   // Helper to normalize text for comparison
   const normalize = (text) => {
@@ -1026,9 +1031,14 @@ const ChangesModal = ({ open, onClose, records, originalRecords }) => {
                   className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/30"
                 >
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-slate-900">
+                    <button
+                      type="button"
+                      onClick={() => handleRowClick(rowNumber)}
+                      className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-slate-900 transition hover:bg-yellow-500 hover:shadow-md cursor-pointer"
+                      title={`Go to Row #${rowNumber}`}
+                    >
                       Row #{rowNumber}
-                    </span>
+                    </button>
                   </div>
 
                   <div className="space-y-3 text-sm">
@@ -1903,6 +1913,7 @@ function App() {
         onClose={() => setChangesModalOpen(false)}
         records={records}
         originalRecords={originalRecords}
+        onNavigateToRecord={(index) => setCurrentIndex(index)}
       />
       <header className="border-b border-slate-200 bg-white/85 px-5 py-4 shadow-lg backdrop-blur dark:border-slate-800 dark:bg-surface-raised/95">
         <div className="mx-auto w-full max-w-6xl space-y-4">
