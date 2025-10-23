@@ -907,6 +907,29 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
     return text.trim().toLowerCase().replace(/[.,:;!?]+$/g, '')
   }
 
+  // Find similar records for a given field
+  const findSimilarRecords = (currentIndex, fieldName, value) => {
+    if (!value || !records) return []
+
+    const normalized = normalize(value)
+    const similarRows = []
+
+    records.forEach((rec, idx) => {
+      if (idx === currentIndex) return // Skip current record
+
+      let fieldValue = ''
+      if (fieldName === 'கேள்வி') fieldValue = rec.questionTa
+      else if (fieldName === 'பதில்') fieldValue = rec.answerTa
+      else if (fieldName === 'விளக்கம்') fieldValue = rec.explanationTa
+
+      if (normalize(fieldValue) === normalized) {
+        similarRows.push(idx + 1) // 1-indexed row number
+      }
+    })
+
+    return similarRows
+  }
+
   // Find all modified records
   const modifiedRecords = records
     .map((record, index) => {
@@ -1026,23 +1049,93 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
             </div>
           ) : (
             <div className="space-y-6">
-              {modifiedRecords.map(({ record, original, rowNumber }) => (
-                <div
-                  key={rowNumber}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/30"
-                >
-                  <div className="mb-3 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleRowClick(rowNumber)}
-                      className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-slate-900 transition hover:bg-yellow-500 hover:shadow-md cursor-pointer"
-                      title={`Go to Row #${rowNumber}`}
-                    >
-                      Row #{rowNumber}
-                    </button>
-                  </div>
+              {modifiedRecords.map(({ record, original, rowNumber }) => {
+                // Find similar content for this record
+                const currentIndex = rowNumber - 1 // Convert to 0-indexed
+                const similarInQuestion = normalize(record.questionTa) !== normalize(original.questionTa)
+                  ? findSimilarRecords(currentIndex, 'கேள்வி', record.questionTa)
+                  : []
+                const similarInAnswer = normalize(record.answerTa) !== normalize(original.answerTa)
+                  ? findSimilarRecords(currentIndex, 'பதில்', record.answerTa)
+                  : []
+                const similarInExplanation = normalize(record.explanationTa) !== normalize(original.explanationTa)
+                  ? findSimilarRecords(currentIndex, 'விளக்கம்', record.explanationTa)
+                  : []
 
-                  <div className="space-y-3 text-sm">
+                const hasSimilar = similarInQuestion.length > 0 || similarInAnswer.length > 0 || similarInExplanation.length > 0
+
+                return (
+                  <div
+                    key={rowNumber}
+                    className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/30"
+                  >
+                    <div className="mb-3 flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleRowClick(rowNumber)}
+                          className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-slate-900 transition hover:bg-yellow-500 hover:shadow-md cursor-pointer"
+                          title={`Go to Row #${rowNumber}`}
+                        >
+                          Row #{rowNumber}
+                        </button>
+                      </div>
+
+                      {/* Similar content warning */}
+                      {hasSimilar && (
+                        <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 dark:border-orange-800 dark:bg-orange-950/30">
+                          <div className="flex items-start gap-2">
+                            <svg className="h-5 w-5 flex-shrink-0 text-orange-600 dark:text-orange-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div className="flex-1 text-xs">
+                              <p className="font-semibold text-orange-800 dark:text-orange-300 mb-1">
+                                Similar content found!
+                              </p>
+                              {similarInQuestion.length > 0 && (
+                                <div className="mb-1">
+                                  <span className="font-medium text-orange-700 dark:text-orange-400">கேள்வி:</span>
+                                  <span className="ml-1 text-orange-600 dark:text-orange-400">
+                                    Row {similarInQuestion.join(', ')}
+                                  </span>
+                                </div>
+                              )}
+                              {similarInAnswer.length > 0 && (
+                                <div className="mb-1">
+                                  <span className="font-medium text-orange-700 dark:text-orange-400">பதில்:</span>
+                                  <span className="ml-1 text-orange-600 dark:text-orange-400">
+                                    Row {similarInAnswer.join(', ')}
+                                  </span>
+                                </div>
+                              )}
+                              {similarInExplanation.length > 0 && (
+                                <div className="mb-1">
+                                  <span className="font-medium text-orange-700 dark:text-orange-400">விளக்கம்:</span>
+                                  <span className="ml-1 text-orange-600 dark:text-orange-400">
+                                    Row {similarInExplanation.join(', ')}
+                                  </span>
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // Navigate to first similar record
+                                  const firstSimilar = similarInQuestion[0] || similarInAnswer[0] || similarInExplanation[0]
+                                  if (firstSimilar) {
+                                    handleRowClick(firstSimilar)
+                                  }
+                                }}
+                                className="mt-2 rounded-md bg-orange-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600"
+                              >
+                                Go to similar record
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3 text-sm">
                     {/* Question */}
                     {normalize(record.questionTa) !== normalize(original.questionTa) && (
                       <div>
@@ -1104,7 +1197,8 @@ const ChangesModal = ({ open, onClose, records, originalRecords, onNavigateToRec
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
