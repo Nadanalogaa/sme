@@ -892,6 +892,216 @@ const InitialUploadScreen = ({ onExcelUpload, onGlossaryUpload }) => (
   </div>
 )
 
+const ChangesModal = ({ open, onClose, records, originalRecords }) => {
+  if (!open) return null
+
+  // Helper to normalize text for comparison
+  const normalize = (text) => {
+    if (!text) return ''
+    return text.trim().toLowerCase()
+  }
+
+  // Find all modified records
+  const modifiedRecords = records
+    .map((record, index) => {
+      const original = originalRecords[index]
+      if (!original) return null
+
+      // Check if any field has changed
+      const hasChanges =
+        normalize(record.questionTa) !== normalize(original.questionTa) ||
+        normalize(record.answerTa) !== normalize(original.answerTa) ||
+        normalize(record.explanationTa) !== normalize(original.explanationTa) ||
+        record.optionsTa.some(
+          (opt, idx) => normalize(opt) !== normalize(original.optionsTa?.[idx])
+        )
+
+      if (!hasChanges) return null
+
+      return {
+        record,
+        original,
+        rowNumber: index + 1, // 1-indexed row number
+      }
+    })
+    .filter(Boolean)
+
+  // Helper to render diff text
+  const renderDiff = (current, original) => {
+    const normCurrent = normalize(current)
+    const normOriginal = normalize(original)
+
+    if (normCurrent === normOriginal) {
+      return <span>{current || '—'}</span>
+    }
+
+    return (
+      <span>
+        {original && (
+          <span className="text-sm text-red-600 line-through dark:text-red-400">
+            {original}
+          </span>
+        )}
+        {' '}
+        <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+          {current || '—'}
+        </span>
+      </span>
+    )
+  }
+
+  // Helper to render option diff
+  const renderOptionDiff = (currentOption, originalOption, optionLetter) => {
+    const stripPrefix = (text) => {
+      if (!text) return text
+      return text.replace(/^[A-D][):]\s*/, '')
+    }
+
+    const cleanCurrent = stripPrefix(currentOption)
+    const cleanOriginal = stripPrefix(originalOption)
+    const hasChanged = normalize(cleanCurrent) !== normalize(cleanOriginal)
+
+    if (!hasChanged) {
+      return (
+        <p className="text-sm">
+          <span className="font-medium">{optionLetter})</span> {cleanCurrent || '—'}
+        </p>
+      )
+    }
+
+    return (
+      <p className="text-sm">
+        <span className="font-medium">{optionLetter})</span>{' '}
+        {cleanOriginal && (
+          <span className="text-sm text-red-600 line-through dark:text-red-400">
+            {cleanOriginal}
+          </span>
+        )}
+        {' '}
+        <span className="rounded bg-green-100 px-1 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+          {cleanCurrent || '—'}
+        </span>
+      </p>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+      <div className="relative mx-4 flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-surface-raised">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              View Changes
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {modifiedRecords.length} record{modifiedRecords.length === 1 ? '' : 's'} modified
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-600 transition hover:border-accent hover:text-accent dark:border-slate-600 dark:text-slate-300"
+            aria-label="Close changes view"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {modifiedRecords.length === 0 ? (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-center text-slate-500 dark:text-slate-400">
+                No changes detected. All records match the original uploaded data.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {modifiedRecords.map(({ record, original, rowNumber }) => (
+                <div
+                  key={rowNumber}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/30"
+                >
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-slate-900">
+                      Row #{rowNumber}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 text-sm">
+                    {/* Question */}
+                    {normalize(record.questionTa) !== normalize(original.questionTa) && (
+                      <div>
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">
+                          கேள்வி:{' '}
+                        </span>
+                        {renderDiff(record.questionTa, original.questionTa)}
+                      </div>
+                    )}
+
+                    {/* Options */}
+                    {record.optionsTa.some(
+                      (opt, idx) => normalize(opt) !== normalize(original.optionsTa?.[idx])
+                    ) && (
+                      <div>
+                        <p className="font-semibold text-slate-700 dark:text-slate-200 mb-2">
+                          விருப்பங்கள்:
+                        </p>
+                        <div className="ml-4 space-y-1">
+                          {['A', 'B', 'C', 'D'].map((letter, idx) => {
+                            if (
+                              normalize(record.optionsTa[idx]) !==
+                              normalize(original.optionsTa?.[idx])
+                            ) {
+                              return (
+                                <div key={letter}>
+                                  {renderOptionDiff(
+                                    record.optionsTa[idx],
+                                    original.optionsTa?.[idx],
+                                    letter
+                                  )}
+                                </div>
+                              )
+                            }
+                            return null
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Answer */}
+                    {normalize(record.answerTa) !== normalize(original.answerTa) && (
+                      <div>
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">
+                          பதில்:{' '}
+                        </span>
+                        {renderDiff(record.answerTa, original.answerTa)}
+                      </div>
+                    )}
+
+                    {/* Explanation */}
+                    {normalize(record.explanationTa) !== normalize(original.explanationTa) && (
+                      <div>
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">
+                          விளக்கம்:{' '}
+                        </span>
+                        {renderDiff(record.explanationTa, original.explanationTa)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const RecordPanel = ({
   record,
   index,
@@ -1258,6 +1468,7 @@ function App() {
   const [userDataError, setUserDataError] = useState('')
   const [isGlossaryPanelOpen, setGlossaryPanelOpen] = useState(false)
   const [isGlossarySliderOpen, setGlossarySliderOpen] = useState(false)
+  const [isChangesModalOpen, setChangesModalOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const [theme, setTheme] = useState(() => initialTheme)
 
@@ -1442,6 +1653,30 @@ function App() {
     () => nowMoment.format('DD MMM YYYY • hh:mm A'),
     [nowMoment]
   )
+
+  // Calculate count of changed records
+  const changedRecordsCount = useMemo(() => {
+    if (records.length === 0 || originalRecords.length === 0) return 0
+
+    const normalize = (text) => {
+      if (!text) return ''
+      return text.trim().toLowerCase()
+    }
+
+    return records.filter((record, index) => {
+      const original = originalRecords[index]
+      if (!original) return false
+
+      return (
+        normalize(record.questionTa) !== normalize(original.questionTa) ||
+        normalize(record.answerTa) !== normalize(original.answerTa) ||
+        normalize(record.explanationTa) !== normalize(original.explanationTa) ||
+        record.optionsTa.some(
+          (opt, idx) => normalize(opt) !== normalize(original.optionsTa?.[idx])
+        )
+      )
+    }).length
+  }, [records, originalRecords])
 
   const handleLogin = ({ email, password }) => {
     const normalisedEmail = toSafeString(email).toLowerCase()
@@ -1663,6 +1898,12 @@ function App() {
         onClose={() => setGlossaryPanelOpen(false)}
         glossary={glossary}
       />
+      <ChangesModal
+        open={isChangesModalOpen}
+        onClose={() => setChangesModalOpen(false)}
+        records={records}
+        originalRecords={originalRecords}
+      />
       <header className="border-b border-slate-200 bg-white/85 px-5 py-4 shadow-lg backdrop-blur dark:border-slate-800 dark:bg-surface-raised/95">
         <div className="mx-auto w-full max-w-6xl space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1691,6 +1932,19 @@ function App() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {excelMeta && changedRecordsCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setChangesModalOpen(true)}
+                  className="flex items-center gap-1.5 rounded-full border border-blue-600/60 bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-blue-700"
+                  title="View all modified records"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                  View Changes ({changedRecordsCount})
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleSaveRecords}
