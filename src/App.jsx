@@ -931,14 +931,24 @@ const RecordPanel = ({
               // Auto-update answer when option changes
               // Find which option letter (A, B, C, D) corresponds to the answer
               const optionLetters = ['A', 'B', 'C', 'D']
-              const currentAnswerLetter = record.answerTa?.charAt(0) // Get first character (A, B, C, or D)
+              const currentAnswerText = record.answerTa?.trim() || ''
+              const currentAnswerLetter = currentAnswerText.charAt(0) // Get first character (A, B, C, or D)
               const currentAnswerIndex = optionLetters.indexOf(currentAnswerLetter)
 
               let newAnswer = record.answerTa
 
               // If the changed option matches the current answer, update it
               if (currentAnswerIndex === optionIndex) {
-                newAnswer = `${optionLetters[optionIndex]}: ${value}`
+                // Detect the original format: "A:" or "A)" or just "A"
+                let separator = ':'
+                if (currentAnswerText.includes(')')) {
+                  separator = ')'
+                } else if (currentAnswerText.includes(':')) {
+                  separator = ':'
+                }
+
+                // Replace with new option text, keeping the same format
+                newAnswer = `${optionLetters[optionIndex]}${separator} ${value}`
               }
 
               onUpdateRecord({
